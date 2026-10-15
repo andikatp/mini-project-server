@@ -1,10 +1,14 @@
 {
-  "name": "mini-project-client",
+  "name": "mini-project-server",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --watch src/app.ts"
+    "dev": "bun --watch src/app.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prisma:generate": "prisma generate --config prisma7.config.ts",
+    "prisma:validate": "prisma validate --config prisma7.config.ts"
   },
   "devDependencies": {
     "@prisma/client": "7",
