@@ -1,0 +1,49 @@
+# Configuration for jgunnink/gemini-review-bot
+# Docs: https://github.com/jgunnink/gemini-review-bot
+
+model: "gemini-3.8-flash"
+
+# Cap maximum diff size to 150 KB for fast reviews and low token usage
+max_diff_bytes: 150000
+
+# Max inline findings per PR review (lower count = much faster response & less token waste)
+max_findings: 7
+
+# Files and paths to ignore during review
+ignore:
+  # Auto-generated Prisma client & types
+  - "src/generated/**"
+  - "**/node_modules/**"
+  - "**/node_modules/.prisma/**"
+
+  # Build & artifact directories
+  - "dist/**"
+  - "coverage/**"
+
+  # Lockfiles & IDE configs
+  - "bun.lock"
+  - "bun.lockb"
+  - "package-lock.json"
+  - "skills-lock.json"
+  - ".agents/**"
+  - ".cursor/**"
+  - ".claude/**"
+
+  # Static assets & Documentation
+  - "*.md"
+  - "public/**"
+  - "**/*.svg"
+  - "**/*.png"
+  - "**/*.jpg"
+  - "**/*.jpeg"
+
+# Token-optimized instructions: prevents verbose conversational fluff
+instructions: |
+  You are an expert code reviewer. Be concise, direct, and actionable:
+  - Focus STRICTLY on:
+    1. Critical logic bugs & unhandled edge cases
+    2. Security vulnerabilities (SQL injection, auth issues, secrets)
+    3. Performance leaks (unindexed Prisma queries, memory bloat)
+  - DO NOT output conversational filler, praise, or compliments.
+  - DO NOT comment on purely cosmetic formatting or styling choices.
+  - Keep suggested code snippets short and focused.

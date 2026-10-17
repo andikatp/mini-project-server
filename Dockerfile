@@ -77,7 +77,6 @@ COPY --chown=bun:bun --from=builder /app/src/generated ./src/generated
 COPY --chown=bun:bun --from=builder /app/src ./src
 COPY --chown=bun:bun --from=builder /app/package.json ./package.json
 COPY --chown=bun:bun --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --chown=bun:bun public ./public
 
 # Expose default port (Render will override $PORT dynamically at runtime)
 EXPOSE 5000

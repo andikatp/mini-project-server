@@ -8,12 +8,19 @@ permissions:
   contents: read
   pull-requests: write
 
+# Automatically cancel redundant/stale reviews when a new commit is pushed to the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   review:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Gemini AI Reviewer
         uses: jgunnink/gemini-review-bot@27ab3135f939e94c90197e347a0df5813e045a14 # v1.5.2
@@ -21,4 +28,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           model: "gemini-3.8-flash"
-          exclude_files: "bun.lockb, package-lock.json, **/node_modules/**, **/dist/**, **/node_modules/.prisma/**"
