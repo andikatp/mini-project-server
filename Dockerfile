@@ -22,7 +22,7 @@ COPY prisma7.config.ts ./
 
 # Install all dependencies (including devDependencies like prisma CLI)
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+    bun install --frozen-lockfile --ignore-scripts
 
 # Copy application source code and TypeScript config
 COPY tsconfig.json ./
@@ -43,7 +43,7 @@ COPY package.json bun.lock ./
 
 # Install strictly production dependencies (cached from builder stage)
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile --production
+    bun install --frozen-lockfile --production --ignore-scripts
 
 # ─────────────────────────────────────────────────────────────
 #   Stage 3 — Runtime
@@ -84,7 +84,7 @@ EXPOSE 5000
 
 # Health check to ensure the container is responsive
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-5000}/health || exit 1
+  CMD curl -f "http://localhost:${PORT:-5000}/health" || exit 1
 
 # Run container as non-root user
 USER bun
