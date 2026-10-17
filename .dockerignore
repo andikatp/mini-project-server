@@ -1,0 +1,39 @@
+# Version control & IDEs
+.git/
+.github/
+.agents/
+.claude/
+.cursor/
+.windsurf/
+.idea/
+.vscode/
+.DS_Store
+
+# Dependencies & Build artifacts (generated fresh inside Docker)
+node_modules/
+src/generated/
+dist/
+out/
+coverage/
+*.lcov
+*.tsbuildinfo
+.eslintcache
+.cache
+
+# Environment variables & Secrets (never bake into image)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Tests & Documentation (not needed in runtime image)
+tests/
+*.md
+
+# Docker-related files
+Dockerfile*
+docker-compose*
+.dockerignore

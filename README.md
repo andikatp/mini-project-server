@@ -83,6 +83,24 @@ Server akan aktif di: **`http://localhost:5000`** 🚀
 
 ---
 
+## 🐳 Menjalankan dengan Docker
+
+Kamu bisa menjalankan aplikasi di dalam container Docker lokal menggunakan Docker Compose:
+
+```bash
+# 1. Build dan jalankan container di background
+docker compose up -d --build
+
+# 2. Cek status container & healthcheck
+docker compose ps
+
+# 3. Lihat log aplikasi
+docker compose logs -f
+
+# 4. Hentikan container
+docker compose down
+```
+
 ## 📁 Struktur Direktori
 
 ```text
