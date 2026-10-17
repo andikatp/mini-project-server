@@ -8,13 +8,13 @@ permissions:
   contents: read
   pull-requests: write
 
-# Automatically cancel redundant/stale reviews when a new commit is pushed to the same PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   review:
+    name: Free Gemini PR Reviewer
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
