@@ -9,7 +9,7 @@ describe("Smoke test", () => {
 
   it("verifies application config and versioning", () => {
     expect(APP_CONFIG.version).toBeDefined();
-    expect(APP_CONFIG.port).toBeNumber();
+    expect(typeof APP_CONFIG.port).toBe("number");
     expect(typeof logger.info).toBe("function");
   });
 });
