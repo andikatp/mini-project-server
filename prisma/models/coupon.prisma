@@ -1,0 +1,21 @@
+enum CouponStatus {
+    AVAILABLE
+    RESERVED
+    REDEEMED
+    EXPIRED
+}
+
+model SystemCoupon {
+    id        String       @id @default(uuid())
+    userId    String       @map("user_id")
+    code      String       @unique
+    status    CouponStatus @default(AVAILABLE)
+    issuedAt  DateTime     @default(now()) @map("issued_at")
+    expiredAt DateTime     @map("expired_at")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // transaction Transaction? @relation("CouponTransaction")
+
+    @@map("system_coupons")
+}
