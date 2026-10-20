@@ -1,8 +1,8 @@
 import express from "express";
 import { APP_CONFIG } from "./configs/app.config.ts";
-import { prisma } from "./db";
 import { logger } from "./libs/logger.ts";
 import { requestLogger } from "./middlewares/logger.middleware.ts";
+import routes from "./routes/index.ts";
 
 const app = express();
 
@@ -28,10 +28,7 @@ app.get("/", (_req, res) => {
   });
 });
 
-async function main() {
-  const users = await prisma.user.findMany();
-  logger.info(`Initial user query result: ${users.length} users found`);
-}
+app.use("/api/v1", routes);
 
 app.listen(APP_CONFIG.port, "0.0.0.0", () => {
   logger.info(

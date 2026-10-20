@@ -74,12 +74,15 @@ Server akan aktif di: **`http://localhost:5000`** 🚀
 
 ## 🛠️ Daftar Perintah Berguna (Cheatsheet)
 
-| Perintah                | Deskripsi                                                                   |
-| :---------------------- | :-------------------------------------------------------------------------- |
-| `bun dev`               | Menjalankan server dalam mode _watch_ (auto-reload saat ada perubahan kode) |
-| `bun x prisma generate` | Men-generate ulang TypeScript client setiap kali `schema.prisma` diubah     |
-| `bun x prisma db push`  | Sinkronisasi schema model di `schema.prisma` langsung ke database Neon      |
-| `bun x prisma studio`   | Membuka web GUI visual untuk melihat dan mengedit data di browser           |
+| Perintah                       | Deskripsi                                                                                       |
+| :----------------------------- | :---------------------------------------------------------------------------------------------- |
+| `bun dev`                      | Menjalankan server dalam mode _watch_ (auto-reload saat ada perubahan kode)                     |
+| `bunx prisma generate`         | Men-generate ulang TypeScript client setiap kali `schema.prisma` diubah                         |
+| `bunx prisma migrate dev --name <nama-perubahan>` | Membuat file migrasi dari perubahan schema.prisma, lalu menerapkannya ke database (workflow utama) |
+| `bunx prisma migrate deploy`   | Menerapkan migrasi yang belum jalan, tanpa membuat migrasi baru (setelah pull dari GitHub, dan untuk production)
+| `bunx prisma migrate reset`    | Reset database development: hapus semua data, lalu terapkan ulang semua migrasi dari awal |
+| `bunx prisma db push`          | Sinkronisasi schema model di `schema.prisma` langsung ke database Neon                          |
+| `bunx prisma studio`           | Membuka web GUI visual untuk melihat dan mengedit data di browser                               |
 
 ---
 
