@@ -1,18 +1,14 @@
 import argon2 from "argon2";
 import { prisma } from "../db";
-import { randomBytes, createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import type { LoginInput, RegisterInput } from "../validations/auth.validation";
 import type { Prisma } from "@prisma/client/extension";
-import { SignJWT } from "jose";
-import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_DAYS } from "../config";
-import { AuthenticationError, TokenError } from "../errors";
+import { REFRESH_TOKEN_EXPIRES_DAYS } from "../config";
+import { AuthenticationError, ConflictError, TokenError, ValidationError } from "../errors";
+import { generateReferralCode } from "../utils/referral";
+import { createAccessToken } from "../utils/jwt";
+import { generateRefreshToken } from "../utils/refreshToken";
 
-
-function generateReferralCode(name: string): string {
-    const cleanName = name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 5);
-    const randomSuffix = randomBytes(2).toString("hex").toUpperCase();
-    return `${cleanName}-${randomSuffix}`;
-}
 
 export async function registerUserService(input: RegisterInput) {
     const { email, password, name, role, referralCode } = input;
@@ -22,7 +18,7 @@ export async function registerUserService(input: RegisterInput) {
     });
 
     if (existingUser) {
-        throw new Error("Email is already registered");
+        throw new ConflictError("Email is already registered");
     }
 
     const hashedPassword = await argon2.hash(password);
@@ -34,7 +30,7 @@ export async function registerUserService(input: RegisterInput) {
         });
 
         if (!referrer) {
-            throw new Error("Invalid referral code");
+            throw new ValidationError("Invalid referral code");
         }
         referrerId = referrer.id;
     }
@@ -114,21 +110,15 @@ export async function loginUserService(input: LoginInput) {
         throw new AuthenticationError("Invalid email or password");
     }
 
-    const secretKey = new TextEncoder().encode(JWT_SECRET);
-    const accessToken = await new SignJWT({ userId: user.id, role: user.role })
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime(JWT_EXPIRES_IN)
-        .sign(secretKey);
+    const accessToken = await createAccessToken({ userId: user.id, role: user.role });
 
-    const refreshTokenString = randomBytes(40).toString("hex");
-    const refreshTokenHash = createHash("sha256").update(refreshTokenString).digest("hex");
+    const { token, hash } = generateRefreshToken();
     const refreshExpiresAt = new Date();
     refreshExpiresAt.setDate(refreshExpiresAt.getDate() + REFRESH_TOKEN_EXPIRES_DAYS);
 
     await prisma.refreshToken.create({
         data: {
-            tokenHash: refreshTokenHash,
+            tokenHash: hash,
             userId: user.id,
             expiresAt: refreshExpiresAt,
         },
@@ -138,8 +128,8 @@ export async function loginUserService(input: LoginInput) {
 
     return {
         user: userWithoutPassword,
-        accessToken,
-        refreshToken: refreshTokenString,
+        access_token: accessToken,
+        refresh_token: token,
     };
 }
 
@@ -164,18 +154,12 @@ export async function refreshAccessTokenService(incomingRefreshToken: string) {
         throw new TokenError("Refresh token expired");
     }
 
-    const secretKey = new TextEncoder().encode(JWT_SECRET);
-
-    const newAccessToken = await new SignJWT({
+    const newAccessToken = await createAccessToken({
         userId: storedToken.user.id,
         role: storedToken.user.role,
-    })
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime(JWT_EXPIRES_IN)
-        .sign(secretKey);
+    });
 
-    return { accessToken: newAccessToken } as const;
+    return { access_token: newAccessToken } as const;
 }
 
 /** Placeholder for password reset request */
