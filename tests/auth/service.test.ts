@@ -279,6 +279,37 @@ describe("Auth Service Core", () => {
       }
     });
 
+    it("should throw AuthenticationError if email is not verified", async () => {
+      const origUser = prisma.user;
+      const realHashedPassword = await argon2.hash("correct-password");
+
+      const mockFindUnique = mock(async () => ({
+        id: "user-1",
+        email: "unverified@example.com",
+        passwordHash: realHashedPassword,
+        emailVerifiedAt: null,
+      }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          loginUserService({
+            email: "unverified@example.com",
+            password: "correct-password",
+          }),
+        ).rejects.toThrow("Please verify your email address before logging in");
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+      }
+    });
+
     it("should return user and sessionToken on successful login", async () => {
       const origUser = prisma.user;
       const origSession = prisma.session;
@@ -289,6 +320,7 @@ describe("Auth Service Core", () => {
         email: "user@example.com",
         name: "Test User",
         passwordHash: realHashedPassword,
+        emailVerifiedAt: new Date(),
       }));
       const mockSessionCreate = mock(async () => ({ id: "session-1" }));
 
@@ -392,8 +424,8 @@ describe("Auth Service Core", () => {
       try {
         const result = await validateSessionService("valid-raw-token");
         expect(result).not.toBeNull();
-        expect(result?.user.id).toBe("user-1");
-        expect((result?.user as any).passwordHash).toBeUndefined();
+        expect(result!.user.id).toBe("user-1");
+        expect((result!.user as any).passwordHash).toBeUndefined();
       } finally {
         Object.defineProperty(prisma, "session", {
           value: origSession,

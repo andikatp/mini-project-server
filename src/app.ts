@@ -14,14 +14,20 @@ const app = express();
 
 app.use(express.json());
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:3000")
+const configuredOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:3000")
   .split(",")
   .map((origin) => origin.trim());
+
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  `http://localhost:${APP_CONFIG.port}`,
+  `http://127.0.0.1:${APP_CONFIG.port}`,
+]);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`Not allowed by CORS: ${origin}`));

@@ -21,7 +21,12 @@ export async function registerHandler(
   res: Response,
 ) {
   const user = await registerUserService(req.body);
-  sendSuccess(res, 201, "User registered successfully", user);
+  sendSuccess(
+    res,
+    201,
+    "Registration successful. A verification email has been sent to your email address. Please check your inbox.",
+    user,
+  );
 }
 
 export async function verifyEmailHandler(req: Request, res: Response) {

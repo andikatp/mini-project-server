@@ -50,7 +50,7 @@ export const swaggerRouter = Router();
 swaggerRouter.get("/:name/swagger.json", (req, res) => {
   const spec = getSwaggerSpec(decodeURIComponent(req.params.name));
   if (!spec) return res.status(404).json({ error: "Definition not found" });
-  res.json(spec);
+  return res.json(spec);
 });
 
 swaggerRouter.use("/", ...swaggerMiddleware);

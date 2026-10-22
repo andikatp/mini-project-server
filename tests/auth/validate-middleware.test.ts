@@ -5,7 +5,7 @@ import { validate } from "../../src/middlewares/validate.middleware";
 
 describe("validate Middleware & errorHandler Integration", () => {
   const schema = z.object({
-    email: z.string().email(),
+    email: z.email(),
     age: z.number().min(18),
   });
 

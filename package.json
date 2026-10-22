@@ -9,6 +9,8 @@
     "build": "bun run prisma:generate",
     "start": "bun src/app.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "test": "bun test",
     "prisma:generate": "prisma generate --config prisma7.config.ts",
     "prisma:validate": "prisma validate --config prisma7.config.ts"
@@ -32,6 +34,8 @@
     "@types/express": "^5.0.6",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "oxlint": "^1.89.0",
+    "oxlint-tsgolint": "^7.0.2004",
     "prisma": "7.10.0"
   },
   "peerDependencies": {

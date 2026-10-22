@@ -162,6 +162,7 @@ describe("Auth Controller Handlers", () => {
           email: "test@example.com",
           name: "Test",
           passwordHash,
+          emailVerifiedAt: new Date(),
         })),
       },
       configurable: true,

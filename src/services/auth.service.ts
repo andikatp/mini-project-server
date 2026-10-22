@@ -118,7 +118,7 @@ export async function registerUserService(input: RegisterInput) {
     () => null,
   );
 
-  const { passwordHash, ...userWithoutPassword } = result;
+  const { passwordHash: _passwordHash, ...userWithoutPassword } = result;
   return userWithoutPassword;
 }
 
@@ -184,6 +184,12 @@ export async function loginUserService(input: LoginInput) {
     throw new AuthenticationError("Invalid email or password");
   }
 
+  if (!user.emailVerifiedAt) {
+    throw new AuthenticationError(
+      "Please verify your email address before logging in. Check your inbox for the activation link.",
+    );
+  }
+
   const { token, tokenHash } = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_CONFIG.maxAgeMs);
 
@@ -195,7 +201,7 @@ export async function loginUserService(input: LoginInput) {
     },
   });
 
-  const { passwordHash, ...userWithoutPassword } = user;
+  const { passwordHash: _passwordHash, ...userWithoutPassword } = user;
 
   return {
     user: userWithoutPassword,
@@ -229,7 +235,7 @@ export async function validateSessionService(rawSessionToken: string) {
     return null;
   }
 
-  const { passwordHash, ...userWithoutPassword } = session.user;
+  const { passwordHash: _passwordHash, ...userWithoutPassword } = session.user;
   return { user: userWithoutPassword, session };
 }
 

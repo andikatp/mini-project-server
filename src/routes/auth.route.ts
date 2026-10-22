@@ -48,7 +48,7 @@ const router = Router();
  *                 type: string
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: Registration successful. Verification email sent.
  *       400:
  *         description: Validation error
  *       409:
@@ -111,7 +111,7 @@ router.post(
  *       200:
  *         description: Login successful, sets HttpOnly session cookie
  *       401:
- *         description: Invalid credentials
+ *         description: Invalid credentials or unverified email
  */
 router.post(
   "/login",
