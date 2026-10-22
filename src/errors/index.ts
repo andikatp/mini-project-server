@@ -48,3 +48,34 @@ export class ValidationError extends AppError {
     this.name = "ValidationError";
   }
 }
+
+/**
+ * Error thrown when a bad request is made.
+ */
+export class BadRequestError extends AppError {
+  constructor(message: string) {
+    super(message, 400);
+    this.name = "BadRequestError";
+  }
+}
+
+/**
+ * Error thrown when the user is authenticated but not authorized (forbidden).
+ */
+export class ForbiddenError extends AppError {
+  constructor(message: string = "You do not have permission to access this resource") {
+    super(message, 403);
+    this.name = "ForbiddenError";
+  }
+}
+
+/**
+ * Error thrown when a requested resource is not found.
+ */
+export class NotFoundError extends AppError {
+  constructor(message: string = "Resource not found") {
+    super(message, 404);
+    this.name = "NotFoundError";
+  }
+}
+

@@ -20,16 +20,16 @@ model User {
     referredBy    User?  @relation("UserReferrals", fields: [referredByUserId], references: [id], onDelete: SetNull)
     referredUsers User[] @relation("UserReferrals")
 
-    refreshTokens       RefreshToken[]
-    passwordResetTokens PasswordResetToken[]
-    pointCredits        PointCredit[]        @relation("ReferrerPoints")
+    refreshTokens           Session[]
+    passwordResetTokens     PasswordResetToken[]
+    pointCredits            PointCredit[]            @relation("ReferrerPoints")
     emailVerificationTokens EmailVerificationToken[]
-    systemCoupons       SystemCoupon[]
+    systemCoupons           SystemCoupon[]
 
     @@map("users")
 }
 
-model RefreshToken {
+model Session {
     id        String   @id @default(uuid())
     userId    String   @map("user_id")
     tokenHash String   @unique @map("token_hash")
@@ -37,7 +37,7 @@ model RefreshToken {
     createdAt DateTime @default(now()) @map("created_at")
     user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@map("refresh_tokens")
+    @@map("sessions")
 }
 
 model PasswordResetToken {

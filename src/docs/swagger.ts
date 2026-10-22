@@ -1,9 +1,10 @@
-import swaggerUi from "swagger-ui-express";
+import { Router } from "express";
 import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 import { APP_CONFIG } from "../configs/app.config.ts";
 
 const baseDefinition = {
-  openapi: "3.0.0",
+  openapi: "3.1.0",
   servers: [{ url: "/api/v1" }],
 };
 
@@ -16,15 +17,13 @@ const definitions: Record<string, ReturnType<typeof swaggerJsdoc>> = {
     },
     apis: ["./src/routes/auth.route.ts"],
   }),
-
-  // Add more definitions here as you create new route files, e.g.:
-  // "User Service": swaggerJsdoc({
-  //   definition: {
-  //     ...baseDefinition,
-  //     info: { title: "User Service", version: APP_CONFIG.version },
-  //   },
-  //   apis: ["./src/routes/user.route.ts"],
-  // }),
+  "User Service": swaggerJsdoc({
+    definition: {
+      ...baseDefinition,
+      info: { title: "User Service", version: APP_CONFIG.version },
+    },
+    apis: ["./src/routes/user.route.ts"],
+  }),
 };
 
 const definitionNames = Object.keys(definitions);
@@ -35,14 +34,23 @@ export const swaggerMiddleware = [
     explorer: true,
     swaggerOptions: {
       urls: definitionNames.map((name) => ({
-        url: `/api-docs/${encodeURIComponent(name)}/swagger.json`,
+        url: `/docs/${encodeURIComponent(name)}/swagger.json`,
         name,
       })),
     },
   }),
 ];
 
-// Returns the raw JSON spec for a given definition name
 export function getSwaggerSpec(name: string) {
   return definitions[name] ?? null;
 }
+
+export const swaggerRouter = Router();
+
+swaggerRouter.get("/:name/swagger.json", (req, res) => {
+  const spec = getSwaggerSpec(decodeURIComponent(req.params.name));
+  if (!spec) return res.status(404).json({ error: "Definition not found" });
+  res.json(spec);
+});
+
+swaggerRouter.use("/", ...swaggerMiddleware);

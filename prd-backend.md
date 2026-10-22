@@ -28,17 +28,17 @@ reference ("kitab"). This file contains only what the backend needs._
    Hosting
    Render (API + migrations on release; cron via external scheduled job)
    Auth
-   JWT access token + bcrypt
+   Database-backed session (stored in Postgres `sessions` table) + HttpOnly cookie + argon2
    Validation
    Zod (params, query, body — every endpoint)
    File storage
    Cloudinary — store URLs + metadata, never image bytes in Postgres
    Email
-   Nodemailer + Gmail SMTP (free; app password) — decided 2026-10-15
+   Resend (HTTP API, API key based) — decided 2026-10-22
    Scheduler
    Idempotent expiry service invoked by an external cron (Render Cron Job or equivalent). Never rely on in-process timers alone.
-   Environment (server): DATABASE_URL, DIRECT_URL, JWT_SECRET,
-   CLIENT_ORIGIN, EMAIL_FROM + Gmail app-password key, Cloudinary keys.
+   Environment (server): DATABASE_URL, DIRECT_URL, SESSION_SECRET,
+   CLIENT_ORIGIN, RESEND_API_KEY, EMAIL_FROM, Cloudinary keys.
    .env at repo root, never in src/; commit only .env.example.
 3. Roles & authorization (server is the authority)
    Roles: CUSTOMER, EVENT_ORGANIZER. No platform super-admin.
@@ -148,7 +148,8 @@ reference ("kitab"). This file contains only what the backend needs._
    updatedAt; explicit FKs; indexes on search/ownership/status/deadline
    fields; soft-cancel over destructive delete for transaction-referenced rows.
    Tables: users (email UQ, passwordHash, role, referralCode UQ immutable,
-   referredByUserId FK), password_reset_tokens, categories, events
+   referredByUserId FK), sessions (tokenHash UQ, userId FK, expiresAt),
+   password_reset_tokens, categories, events
    (organizerId, categoryId, status), ticket_types (priceIdr, quota,
    reservedQty, soldQty), event_vouchers, coupons (ownerUserId, status),
    point_credits (amount, remainingAmount, expiresAt), transactions
@@ -171,7 +172,7 @@ reference ("kitab"). This file contains only what the backend needs._
    transactions(confirmationDueAt).
 7. REST API (draft — prefix /api/v1)
    Auth: POST /auth/register (referralCode?), POST /auth/login,
-   GET /auth/me, POST /auth/forgot-password, POST /auth/reset-password,
+   POST /auth/logout, GET /auth/me, POST /auth/forgot-password, POST /auth/reset-password,
    PATCH /users/me, PATCH /users/me/password.
    Discovery: GET /categories, GET /events (search/filter/paginate, public),
    GET /events/:eventId, GET /organizers/:organizerId/reviews.
@@ -208,9 +209,10 @@ reference ("kitab"). This file contains only what the backend needs._
    draft/published/completed/canceled, free + paid tickets, active/expired
    voucher + coupon, expiring point credits, transactions in all six statuses,
    reviews, history for day/month/year charts. Documented demo accounts.
-9. Decisions (2026-10-15)
-   Payment: manual bank transfer + proof upload. No gateway for MVP.
-   Email: Nodemailer + Gmail SMTP (free, app password).
+9. Decisions
+   Auth (2026-10-22): Moved from JWT access tokens to database-backed sessions (PostgreSQL `sessions` table) with `HttpOnly` secure cookies for web security (XSS prevention) and immediate session revocation.
+   Email (2026-10-22): Resend (HTTP API, API key based) instead of personal Gmail SMTP to avoid sharing personal email credentials across teammates.
+   Payment (2026-10-15): manual bank transfer + proof upload. No gateway for MVP.
    Reviews need organizer approval (PENDING → APPROVED/REJECTED).
    Stacking allowed: voucher + coupon + points in one checkout.
    No design/branding guidelines for MVP.

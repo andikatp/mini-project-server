@@ -43,7 +43,9 @@ export const logger = {
 
   error(message: string, error?: unknown): void {
     if (error instanceof Error) {
-      console.error(`${getLevelBadge("ERROR")} ${message}: ${error.message}\n${error.stack || ""}`);
+      console.error(
+        `${getLevelBadge("ERROR")} ${message}: ${error.message}\n${error.stack || ""}`,
+      );
     } else if (error !== undefined) {
       console.error(`${getLevelBadge("ERROR")} ${message}`, error);
     } else {
@@ -52,8 +54,6 @@ export const logger = {
   },
 
   debug(message: string, ...meta: unknown[]): void {
-    if (!APP_CONFIG.isProduction) {
-      console.debug(`${getLevelBadge("DEBUG")} ${message}`, ...meta);
-    }
+    console.debug(`${getLevelBadge("DEBUG")} ${message}`, ...meta);
   },
 };
