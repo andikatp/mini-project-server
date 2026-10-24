@@ -40,7 +40,6 @@ app.use(cookieParser(SESSION_CONFIG.secret));
 app.use(requestLogger);
 
 app.use("/docs", swaggerRouter);
-app.use("/api-docs", swaggerRouter);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
@@ -62,12 +61,14 @@ app.use("/api/v1", routes);
 
 // Fallback 404 handler for any unmatched route
 app.use((req) => {
-  throw new NotFoundError(`Endpoint ${req.method} ${req.originalUrl} not found`);
+  throw new NotFoundError(
+    `Endpoint ${req.method} ${req.originalUrl} not found`,
+  );
 });
 
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== "test") {
+if (import.meta.main) {
   app.listen(APP_CONFIG.port, "0.0.0.0", () => {
     logger.info(
       `🚀 Server running on http://localhost:${APP_CONFIG.port} (Version: ${APP_CONFIG.version})`,
@@ -76,4 +77,3 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 export default app;
-

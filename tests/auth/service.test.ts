@@ -137,6 +137,62 @@ describe("Auth Service Core", () => {
         mailSpy.mockRestore();
       }
     });
+
+    it("should abort registration and throw AppError if sending verification email fails", async () => {
+      const origUser = prisma.user;
+      const origTransaction = prisma.$transaction;
+      const mailSpy = spyOn(mailer, "sendVerificationEmail").mockRejectedValue(
+        new Error("Resend API rejected"),
+      );
+
+      const mockCreatedUser = {
+        id: "new-user-123",
+        email: "brandnew@example.com",
+        name: "Brand New",
+        role: "CUSTOMER",
+        passwordHash: "hashed-pw",
+        referralCode: "BRAND1234",
+      };
+
+      const mockFindUnique = mock(async () => null);
+      const mockTransaction = mock(async (cb: any) => {
+        const tx = {
+          user: { create: mock(async () => mockCreatedUser) },
+          emailVerificationToken: { create: mock(async () => ({})) },
+        };
+        return cb(tx);
+      });
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "$transaction", {
+        value: mockTransaction,
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          registerUserService({
+            email: "brandnew@example.com",
+            password: "password123",
+            name: "Brand New",
+            role: "CUSTOMER",
+          }),
+        ).rejects.toThrow("Failed to send verification email");
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "$transaction", {
+          value: origTransaction,
+          configurable: true,
+        });
+        mailSpy.mockRestore();
+      }
+    });
   });
 
   describe("verifyEmailService", () => {

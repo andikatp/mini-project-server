@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "crypto";
+import { generateSecureToken, hashToken } from "./token.ts";
 
 /**
  * Generate a cryptographically secure session token and its SHA-256 hash.
@@ -6,14 +6,13 @@ import { randomBytes, createHash } from "crypto";
  * - Only the hash is stored in the database.
  */
 export function generateSessionToken() {
-  const token = randomBytes(32).toString("hex");
-  const tokenHash = hashSessionToken(token);
-  return { token, tokenHash };
+  const { rawToken, tokenHash } = generateSecureToken();
+  return { token: rawToken, tokenHash };
 }
 
 /**
  * Hash a raw session token using SHA-256 to look it up in the database.
  */
 export function hashSessionToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  return hashToken(token);
 }

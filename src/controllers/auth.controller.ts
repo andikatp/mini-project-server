@@ -45,7 +45,7 @@ export async function loginHandler(
   // Set secure HttpOnly cookie
   res.cookie(SESSION_CONFIG.cookieName, sessionToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: SESSION_CONFIG.secure,
     sameSite: "lax",
     maxAge: SESSION_CONFIG.maxAgeMs,
   });

@@ -1,15 +1,26 @@
 import argon2 from "argon2";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { SESSION_CONFIG } from "../configs/session.config.ts";
 import { prisma } from "../db";
-import { AuthenticationError, ConflictError, ValidationError } from "../errors";
+import {
+  AppError,
+  AuthenticationError,
+  ConflictError,
+  ValidationError,
+} from "../errors";
 import { Prisma } from "../generated/prisma/client";
+import { logger } from "../libs/logger.ts";
 import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "../libs/mailer.ts";
 import { generateReferralCode } from "../utils/referral";
 import { generateSessionToken, hashSessionToken } from "../utils/session";
+import {
+  generatePasswordResetToken,
+  generateVerificationToken,
+  hashToken,
+} from "../utils/token.ts";
 import type { LoginInput, RegisterInput } from "../validations/auth.validation";
 
 /**
@@ -53,11 +64,11 @@ export async function registerUserService(input: RegisterInput) {
   }
 
   // Generate email verification token (raw to email, hash to DB)
-  const rawVerificationToken = randomBytes(32).toString("hex");
-  const verificationTokenHash = createHash("sha256")
-    .update(rawVerificationToken)
-    .digest("hex");
-  const verificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  const {
+    rawToken: rawVerificationToken,
+    tokenHash: verificationTokenHash,
+    expiresAt: verificationExpiresAt,
+  } = generateVerificationToken();
 
   const result = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
@@ -109,13 +120,21 @@ export async function registerUserService(input: RegisterInput) {
         });
       }
 
+      try {
+        await sendVerificationEmail(user.email, rawVerificationToken);
+      } catch (err: any) {
+        logger.error(
+          `Registration aborted: failed to dispatch verification email to ${user.email}`,
+          err,
+        );
+        throw new AppError(
+          `Failed to send verification email: ${err.message || "Email delivery failed"}. Registration rolled back.`,
+          500,
+        );
+      }
+
       return user;
     },
-  );
-
-  // Send verification email asynchronously
-  await sendVerificationEmail(result.email, rawVerificationToken).catch(
-    () => null,
   );
 
   const { passwordHash: _passwordHash, ...userWithoutPassword } = result;
@@ -126,7 +145,7 @@ export async function registerUserService(input: RegisterInput) {
  * Verify a user's email address using the token sent to their inbox.
  */
 export async function verifyEmailService(rawToken: string) {
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const tokenHash = hashToken(rawToken);
 
   const verificationRecord = await prisma.emailVerificationToken.findUnique({
     where: { tokenHash },
@@ -270,9 +289,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
   }
 
   // Generate email reset token (raw token sent to email, SHA-256 hash stored in DB)
-  const rawResetToken = randomBytes(32).toString("hex");
-  const tokenHash = createHash("sha256").update(rawResetToken).digest("hex");
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiration
+  const {
+    rawToken: rawResetToken,
+    tokenHash,
+    expiresAt,
+  } = generatePasswordResetToken();
 
   // Invalidate any existing unused reset tokens for this user
   await prisma.passwordResetToken.deleteMany({
@@ -315,7 +336,7 @@ export async function resetPasswordService(
     throw new ValidationError("Password must be at least 6 characters long");
   }
 
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const tokenHash = hashToken(rawToken);
 
   const resetRecord = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },

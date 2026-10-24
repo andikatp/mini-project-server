@@ -37,6 +37,11 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
     });
 
     if (error) {
+      if ((error as any).statusCode === 403) {
+        logger.warn(
+          `⚠️ [Resend Sandbox Limitation] Resend in test mode only allows sending to your registered account email (triprasetya_andika@yahoo.com). To send to any recipient, verify your domain at https://resend.com/domains and update EMAIL_FROM in .env.`,
+        );
+      }
       logger.error(`❌ Resend error sending email to ${to}:`, error);
       throw error;
     }
@@ -54,6 +59,8 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
  */
 export async function sendVerificationEmail(email: string, token: string) {
   const verifyUrl = `${MAIL_CONFIG.clientUrl}/verify-email?token=${token}`;
+
+  logger.info(`🔗 [EMAIL VERIFICATION LINK] To: ${email} -> ${verifyUrl}`);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -84,6 +91,8 @@ export async function sendVerificationEmail(email: string, token: string) {
  */
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${MAIL_CONFIG.clientUrl}/reset-password?token=${token}`;
+
+  logger.info(`🔗 [PASSWORD RESET LINK] To: ${email} -> ${resetUrl}`);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

@@ -35,10 +35,7 @@ export function errorHandler(
   // Log unexpected errors
   logger.error("Unhandled Server Error:", err);
 
-  const fallbackMessage =
-    process.env.NODE_ENV === "production"
-      ? "Internal server error"
-      : (err.message ?? "Internal server error");
+  const fallbackMessage = err.message ?? "Internal server error";
 
   return sendError(res, 500, fallbackMessage);
 }
