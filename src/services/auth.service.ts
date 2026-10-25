@@ -118,18 +118,17 @@ export async function registerUserService(input: RegisterInput) {
       }
 
       try {
-        await sendVerificationEmail(user.email, rawVerificationToken);
-      } catch (err: any) {
-        logger.error(
-          `Registration aborted: failed to dispatch verification email to ${user.email}`,
-          err,
-        );
-        throw new AppError(
-          `Failed to send verification email: ${err.message || "Email delivery failed"}. Registration rolled back.`,
-          500,
-        );
-      }
+    },
+  );
 
+  try {
+    await sendVerificationEmail(result.email, rawVerificationToken);
+  } catch (err: any) {
+    logger.error(
+      `Failed to dispatch verification email to ${result.email}:`,
+      err,
+    );
+  }
       return user;
     },
   );
