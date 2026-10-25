@@ -2,12 +2,7 @@ import argon2 from "argon2";
 import { randomBytes } from "node:crypto";
 import { SESSION_CONFIG } from "../configs/session.config.ts";
 import { prisma } from "../db";
-import {
-  AppError,
-  AuthenticationError,
-  ConflictError,
-  ValidationError,
-} from "../errors";
+import { AuthenticationError, ConflictError, ValidationError } from "../errors";
 import { Prisma } from "../generated/prisma/client";
 import { logger } from "../libs/logger.ts";
 import {
@@ -118,17 +113,13 @@ export async function registerUserService(input: RegisterInput) {
       }
 
       try {
-    },
-  );
-
-  try {
-    await sendVerificationEmail(result.email, rawVerificationToken);
-  } catch (err: any) {
-    logger.error(
-      `Failed to dispatch verification email to ${result.email}:`,
-      err,
-    );
-  }
+        await sendVerificationEmail(result.email, rawVerificationToken);
+      } catch (err: any) {
+        logger.error(
+          `Failed to dispatch verification email to ${result.email}:`,
+          err,
+        );
+      }
       return user;
     },
   );
