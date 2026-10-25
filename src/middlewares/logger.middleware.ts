@@ -13,7 +13,8 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
     const method = req.method;
     const url = req.originalUrl || req.url;
     const statusCode = res.statusCode;
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "-";
+    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "-";
+    const ip = Array.isArray(rawIp) ? rawIp[0] : rawIp;
 
     const logMessage = `${method} ${url} ${statusCode} - ${duration}ms [ip: ${ip}]`;
 
