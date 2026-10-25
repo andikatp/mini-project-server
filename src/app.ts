@@ -11,6 +11,7 @@ import { requestLogger } from "./middlewares/logger.middleware.ts";
 import routes from "./routes/index.ts";
 
 const app = express();
+app.disable("x-powered-by");
 
 app.use(express.json());
 
@@ -30,7 +31,7 @@ app.use(
       if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`Not allowed by CORS: ${origin}`));
+        callback(null, false);
       }
     },
     credentials: true,

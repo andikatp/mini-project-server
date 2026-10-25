@@ -41,9 +41,7 @@ export function errorHandler(
   // Log unexpected errors
   logger.error("Unhandled Server Error:", err);
 
-  const fallbackMessage = err.message ?? "Internal server error";
-
-  return sendError(res, 500, fallbackMessage);
+  return sendError(res, 500, "Internal server error");
 }
 
 

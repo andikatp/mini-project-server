@@ -28,7 +28,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(
+        await expect(
           registerUserService({
             email: "existing@example.com",
             password: "password123",
@@ -59,7 +59,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(
+        await expect(
           registerUserService({
             email: "new@example.com",
             password: "password123",
@@ -173,7 +173,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(
+        await expect(
           registerUserService({
             email: "brandnew@example.com",
             password: "password123",
@@ -206,7 +206,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(verifyEmailService("invalid-raw-token")).rejects.toThrow(
+        await expect(verifyEmailService("invalid-raw-token")).rejects.toThrow(
           ValidationError,
         );
       } finally {
@@ -231,7 +231,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(verifyEmailService("used-token")).rejects.toThrow(
+        await expect(verifyEmailService("used-token")).rejects.toThrow(
           ValidationError,
         );
       } finally {
@@ -291,7 +291,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(
+        await expect(
           loginUserService({
             email: "notfound@example.com",
             password: "password123",
@@ -321,7 +321,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(
+        await expect(
           loginUserService({
             email: "user@example.com",
             password: "wrong-password",
@@ -352,7 +352,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(
+        await expect(
           loginUserService({
             email: "unverified@example.com",
             password: "correct-password",
@@ -522,7 +522,7 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        expect(getUserProfileService("missing-id")).rejects.toThrow(
+        await expect(getUserProfileService("missing-id")).rejects.toThrow(
           AuthenticationError,
         );
       } finally {

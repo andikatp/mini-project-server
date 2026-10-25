@@ -19,7 +19,7 @@ describe("Password Reset Flow", () => {
       });
 
       try {
-        expect(
+        await expect(
           requestPasswordReset("nonexistent@example.com"),
         ).resolves.toBeUndefined();
         expect(mockFindUnique).toHaveBeenCalled();
@@ -92,13 +92,13 @@ describe("Password Reset Flow", () => {
 
   describe("resetPasswordService", () => {
     it("should throw ValidationError if raw token is missing", async () => {
-      expect(resetPasswordService("", "newpassword123")).rejects.toThrow(
+      await expect(resetPasswordService("", "newpassword123")).rejects.toThrow(
         ValidationError,
       );
     });
 
     it("should throw ValidationError if new password is too short", async () => {
-      expect(resetPasswordService("sometoken", "123")).rejects.toThrow(
+      await expect(resetPasswordService("sometoken", "123")).rejects.toThrow(
         ValidationError,
       );
     });
@@ -113,7 +113,7 @@ describe("Password Reset Flow", () => {
       });
 
       try {
-        expect(
+        await expect(
           resetPasswordService("invalidtoken", "newpassword123"),
         ).rejects.toThrow(ValidationError);
       } finally {
@@ -140,7 +140,7 @@ describe("Password Reset Flow", () => {
       });
 
       try {
-        expect(
+        await expect(
           resetPasswordService("usedtoken", "newpassword123"),
         ).rejects.toThrow(ValidationError);
       } finally {
@@ -167,7 +167,7 @@ describe("Password Reset Flow", () => {
       });
 
       try {
-        expect(
+        await expect(
           resetPasswordService("expiredtoken", "newpassword123"),
         ).rejects.toThrow(ValidationError);
       } finally {
