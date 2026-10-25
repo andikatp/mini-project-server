@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 /**
  * Generate a cryptographically secure random token (32-byte hex)

@@ -1,5 +1,5 @@
 import argon2 from "argon2";
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { SESSION_CONFIG } from "../configs/session.config.ts";
 import { prisma } from "../db";
 import {
@@ -53,14 +53,12 @@ export async function registerUserService(input: RegisterInput) {
   }
 
   let newReferralCode = generateReferralCode(name);
-  let codeExists = await prisma.user.findUnique({
-    where: { referralCode: newReferralCode },
-  });
-  while (codeExists) {
-    newReferralCode = generateReferralCode(name);
-    codeExists = await prisma.user.findUnique({
+  for (let attempts = 0; attempts < 5; attempts++) {
+    const codeExists = await prisma.user.findUnique({
       where: { referralCode: newReferralCode },
     });
+    if (!codeExists) break;
+    newReferralCode = generateReferralCode(name);
   }
 
   const {

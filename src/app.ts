@@ -76,7 +76,7 @@ if (import.meta.main) {
     );
   });
 
-  const shutdown = async (signal: string) => {
+  const shutdown = (signal: string) => {
     logger.info(`${signal} received — shutting down gracefully…`);
     server.close(async () => {
       const { prisma } = await import("./db/index.ts");
@@ -90,7 +90,7 @@ if (import.meta.main) {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("unhandledRejection", (reason) => {
     logger.error("Unhandled promise rejection:", reason);
-    void shutdown("unhandledRejection");
+    shutdown("unhandledRejection");
   });
 }
 
