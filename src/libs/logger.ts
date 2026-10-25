@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "../configs/app.config.ts";
 
-export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
+type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 
 const LOG_COLORS = {
   reset: "\x1b[0m",

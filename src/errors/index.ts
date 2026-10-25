@@ -19,15 +19,6 @@ export class AuthenticationError extends AppError {
   }
 }
 
-/**
- * Error thrown for issues related to refresh tokens, such as invalid or expired tokens.
- */
-export class TokenError extends AppError {
-  constructor(message: string) {
-    super(message, 401);
-    this.name = "TokenError";
-  }
-}
 
 /**
  * Error thrown when a resource already exists (e.g., duplicate email).
@@ -49,25 +40,7 @@ export class ValidationError extends AppError {
   }
 }
 
-/**
- * Error thrown when a bad request is made.
- */
-export class BadRequestError extends AppError {
-  constructor(message: string) {
-    super(message, 400);
-    this.name = "BadRequestError";
-  }
-}
 
-/**
- * Error thrown when the user is authenticated but not authorized (forbidden).
- */
-export class ForbiddenError extends AppError {
-  constructor(message: string = "You do not have permission to access this resource") {
-    super(message, 403);
-    this.name = "ForbiddenError";
-  }
-}
 
 /**
  * Error thrown when a requested resource is not found.

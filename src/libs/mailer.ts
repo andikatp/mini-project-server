@@ -2,23 +2,16 @@ import { Resend } from "resend";
 import { MAIL_CONFIG } from "../configs/mail.config.ts";
 import { logger } from "./logger.ts";
 
-/**
- * Singleton Resend Client
- */
-export const resend = new Resend(MAIL_CONFIG.apiKey || "re_dummy_fallback_key");
+const resend = new Resend(MAIL_CONFIG.apiKey || "re_dummy_fallback_key");
 
-export type SendEmailOptions = {
+type SendEmailOptions = {
   to: string;
   subject: string;
   html: string;
   text?: string;
 };
 
-/**
- * Generic email sender using Resend HTTP API
- */
-export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
-  // If Resend API Key is not set in dev, log to console instead of failing
+async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   if (!MAIL_CONFIG.apiKey) {
     logger.warn(
       `[RESEND NOT CONFIGURED] Email to: ${to} | Subject: ${subject}`,
@@ -39,28 +32,25 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
     if (error) {
       if ((error as any).statusCode === 403) {
         logger.warn(
-          `⚠️ [Resend Sandbox Limitation] Resend in test mode only allows sending to your registered account email (triprasetya_andika@yahoo.com). To send to any recipient, verify your domain at https://resend.com/domains and update EMAIL_FROM in .env.`,
+          `[Resend Sandbox Limitation] Resend in test mode only allows sending to your registered account email (triprasetya_andika@yahoo.com). To send to any recipient, verify your domain at https://resend.com/domains and update EMAIL_FROM in .env.`,
         );
       }
-      logger.error(`❌ Resend error sending email to ${to}:`, error);
+      logger.error(`Resend error sending email to ${to}:`, error);
       throw error;
     }
 
-    logger.info(`📧 Email sent to ${to} via Resend: ${data?.id}`);
+    logger.info(`Email sent to ${to} via Resend: ${data?.id}`);
     return data;
   } catch (error) {
-    logger.error(`❌ Failed to send email to ${to}:`, error);
+    logger.error(`Failed to send email to ${to}:`, error);
     throw error;
   }
 }
 
-/**
- * Send email verification link
- */
 export async function sendVerificationEmail(email: string, token: string) {
   const verifyUrl = `${MAIL_CONFIG.clientUrl}/verify-email?token=${token}`;
 
-  logger.info(`🔗 [EMAIL VERIFICATION LINK] To: ${email} -> ${verifyUrl}`);
+  logger.info(`[EMAIL VERIFICATION LINK] To: ${email} -> ${verifyUrl}`);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -86,13 +76,10 @@ export async function sendVerificationEmail(email: string, token: string) {
   });
 }
 
-/**
- * Send password reset link
- */
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${MAIL_CONFIG.clientUrl}/reset-password?token=${token}`;
 
-  logger.info(`🔗 [PASSWORD RESET LINK] To: ${email} -> ${resetUrl}`);
+  logger.info(`[PASSWORD RESET LINK] To: ${email} -> ${resetUrl}`);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

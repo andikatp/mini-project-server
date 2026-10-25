@@ -74,9 +74,10 @@ Server akan aktif di: **`http://localhost:5000`** 🚀
 
 ## 🛠️ Daftar Perintah Berguna (Cheatsheet)
 
-| Perintah                                          | Deskripsi                                                                                                        |
-| :------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------- |
 | `bun dev`                                         | Menjalankan server dalam mode _watch_ (auto-reload saat ada perubahan kode)                                      |
+| `bun test`                                        | Menjalankan seluruh test suite                                                                                   |
+| `bun run lint`                                    | Menjalankan OXLint untuk cek kualitas kode                                                                       |
+| `bunx knip`                                       | Mendeteksi unused exports, files, dan dependencies di seluruh project                                            |
 | `bunx prisma migrate dev --name <nama-perubahan>` | Membuat file migrasi dari perubahan schema.prisma, lalu menerapkannya ke database (workflow utama)               |
 | `bunx prisma generate`                            | Men-generate ulang TypeScript client setiap kali `schema.prisma` diubah                                          |
 | `bunx prisma migrate deploy`                      | Menerapkan migrasi yang belum jalan, tanpa membuat migrasi baru (setelah pull dari GitHub, dan untuk production) |
@@ -85,6 +86,20 @@ Server akan aktif di: **`http://localhost:5000`** 🚀
 | `bunx prisma studio`                              | Membuka web GUI visual untuk melihat dan mengedit data di browser                                                |
 
 ---
+
+## 🔍 Code Quality Tools
+
+| Tool | Deskripsi |
+| :--- | :-------- |
+| **[OXLint](https://oxc.rs/docs/guide/usage/linter)** | Linter cepat berbasis Rust untuk TypeScript/JavaScript |
+| **[Knip](https://knip.dev)** | Mendeteksi unused exports, unused files, dan unused `package.json` dependencies secara project-wide |
+
+```bash
+# Cek unused code di seluruh project
+bunx knip
+```
+
+
 
 ## 🐳 Menjalankan dengan Docker
 

@@ -6,9 +6,10 @@ import { sendError } from "../utils/response";
 
 /**
  * Centralized Express error handling middleware.
+ * - body-parser SyntaxError (malformed JSON) → 400
  * - ZodError → 400 with formatted field errors
- * - AppError subclasses (AuthenticationError, TokenError, ConflictError, etc.) → uses their statusCode
- * - Fallback → 500 (masked in production)
+ * - AppError subclasses → uses their statusCode
+ * - Fallback → 500
  */
 export function errorHandler(
   err: any,
@@ -16,6 +17,11 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ) {
+  // Malformed JSON body (body-parser SyntaxError)
+  if (err instanceof SyntaxError && err.message.includes("JSON")) {
+    return sendError(res, 400, "Invalid JSON in request body");
+  }
+
   // Handle Zod validation errors
   if (err instanceof ZodError) {
     const message = err.issues
@@ -39,4 +45,5 @@ export function errorHandler(
 
   return sendError(res, 500, fallbackMessage);
 }
+
 

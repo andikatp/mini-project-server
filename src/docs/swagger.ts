@@ -28,7 +28,7 @@ const definitions: Record<string, ReturnType<typeof swaggerJsdoc>> = {
 
 const definitionNames = Object.keys(definitions);
 
-export const swaggerMiddleware = [
+const swaggerMiddleware = [
   swaggerUi.serve,
   swaggerUi.setup(definitions[definitionNames[0]!], {
     explorer: true,
@@ -41,7 +41,7 @@ export const swaggerMiddleware = [
   }),
 ];
 
-export function getSwaggerSpec(name: string) {
+function getSwaggerSpec(name: string) {
   return definitions[name] ?? null;
 }
 

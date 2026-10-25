@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const UserRoleSchema = z.enum(["CUSTOMER", "EVENT_ORGANIZER"]);
+const UserRoleSchema = z.enum(["CUSTOMER", "EVENT_ORGANIZER"]);
 
 export const registerSchema = z.object({
   email: z.email("Invalid email address format"),
@@ -22,7 +22,6 @@ export const verifyEmailSchema = z.object({
   token: z.string().min(1, "Verification token is required"),
 });
 
-export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 
 export const forgotPasswordSchema = z.object({
   email: z.email("Invalid email address format"),

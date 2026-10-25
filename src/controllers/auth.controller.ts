@@ -42,7 +42,6 @@ export async function loginHandler(
   const { email, password } = req.body;
   const { user, sessionToken } = await loginUserService({ email, password });
 
-  // Set secure HttpOnly cookie
   res.cookie(SESSION_CONFIG.cookieName, sessionToken, {
     httpOnly: true,
     secure: SESSION_CONFIG.secure,
@@ -64,7 +63,7 @@ export async function logoutHandler(req: Request, res: Response) {
 
   res.clearCookie(SESSION_CONFIG.cookieName, {
     httpOnly: true,
-    secure: true,
+    secure: SESSION_CONFIG.secure,
     sameSite: "lax",
   });
 

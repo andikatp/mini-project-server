@@ -69,11 +69,29 @@ app.use((req) => {
 app.use(errorHandler);
 
 if (import.meta.main) {
-  app.listen(APP_CONFIG.port, "0.0.0.0", () => {
+  const server = app.listen(APP_CONFIG.port, "0.0.0.0", () => {
     logger.info(
       `🚀 Server running on http://localhost:${APP_CONFIG.port} (Version: ${APP_CONFIG.version})`,
     );
   });
+
+  const shutdown = async (signal: string) => {
+    logger.info(`${signal} received — shutting down gracefully…`);
+    server.close(async () => {
+      const { prisma } = await import("./db/index.ts");
+      await prisma.$disconnect();
+      logger.info("Server closed. Bye 👋");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("unhandledRejection", (reason) => {
+    logger.error("Unhandled promise rejection:", reason);
+    void shutdown("unhandledRejection");
+  });
 }
+
 
 export default app;

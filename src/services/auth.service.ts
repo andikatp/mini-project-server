@@ -63,7 +63,6 @@ export async function registerUserService(input: RegisterInput) {
     });
   }
 
-  // Generate email verification token (raw to email, hash to DB)
   const {
     rawToken: rawVerificationToken,
     tokenHash: verificationTokenHash,
@@ -166,7 +165,6 @@ export async function verifyEmailService(rawToken: string) {
     );
   }
 
-  // Atomically mark token as used and set user emailVerifiedAt
   await prisma.$transaction([
     prisma.emailVerificationToken.update({
       where: { id: verificationRecord.id },
@@ -283,19 +281,16 @@ export async function requestPasswordReset(email: string): Promise<void> {
     where: { email },
   });
 
-  // Guard against user enumeration: return silently if email not found
   if (!user) {
     return;
   }
 
-  // Generate email reset token (raw token sent to email, SHA-256 hash stored in DB)
   const {
     rawToken: rawResetToken,
     tokenHash,
     expiresAt,
   } = generatePasswordResetToken();
 
-  // Invalidate any existing unused reset tokens for this user
   await prisma.passwordResetToken.deleteMany({
     where: {
       userId: user.id,
@@ -303,7 +298,6 @@ export async function requestPasswordReset(email: string): Promise<void> {
     },
   });
 
-  // Save the new password reset token
   await prisma.passwordResetToken.create({
     data: {
       userId: user.id,
@@ -312,7 +306,6 @@ export async function requestPasswordReset(email: string): Promise<void> {
     },
   });
 
-  // Send password reset email asynchronously
   await sendPasswordResetEmail(user.email, rawResetToken).catch(() => null);
 }
 
