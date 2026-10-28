@@ -47,24 +47,21 @@ async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   }
 }
 
-export async function sendVerificationEmail(email: string, token: string) {
-  const verifyUrl = `${MAIL_CONFIG.clientUrl}/verify-email?token=${token}`;
-
-  logger.info(`[EMAIL VERIFICATION LINK] To: ${email} -> ${verifyUrl}`);
+export async function sendVerificationEmail(email: string, otp: string) {
+  logger.info(`[EMAIL VERIFICATION OTP] To: ${email} -> Code: ${otp}`);
 
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2>Welcome to EventMgmt!</h2>
-      <p>Thank you for registering. Please click the button below to verify your email address and activate your account:</p>
-      <p style="margin: 24px 0;">
-        <a href="${verifyUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-          Verify Email Address
-        </a>
-      </p>
-      <p style="color: #64748b; font-size: 14px;">Or copy and paste this link in your browser:</p>
-      <p style="color: #64748b; font-size: 13px; word-break: break-all;">${verifyUrl}</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #1e293b; margin-top: 0;">Welcome to EventMgmt!</h2>
+      <p style="color: #475569; font-size: 15px; line-height: 1.5;">Thank you for registering. Use the 6-digit verification code below to activate your account:</p>
+      <div style="margin: 28px 0; text-align: center;">
+        <span style="display: inline-block; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #2563eb; background: #eff6ff; padding: 14px 28px; border-radius: 8px; border: 1px dashed #bfdbfe;">
+          ${otp}
+        </span>
+      </div>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 4px;">This verification code <strong>expires in 10 minutes</strong> and allows at most 5 attempts.</p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-      <p style="color: #94a3b8; font-size: 12px;">This link will expire in 24 hours. If you did not create an account, you can safely ignore this email.</p>
+      <p style="color: #94a3b8; font-size: 12px; margin: 0;">If you did not register for an EventMgmt account, you can safely ignore this email.</p>
     </div>
   `;
 
@@ -72,28 +69,25 @@ export async function sendVerificationEmail(email: string, token: string) {
     to: email,
     subject: "Verify your email address - EventMgmt",
     html,
-    text: `Please verify your email address by opening this link: ${verifyUrl}`,
+    text: `Your EventMgmt verification code is: ${otp}. It expires in 10 minutes.`,
   });
 }
 
-export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${MAIL_CONFIG.clientUrl}/reset-password?token=${token}`;
-
-  logger.info(`[PASSWORD RESET LINK] To: ${email} -> ${resetUrl}`);
+export async function sendPasswordResetEmail(email: string, otp: string) {
+  logger.info(`[PASSWORD RESET OTP] To: ${email} -> Code: ${otp}`);
 
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2>Reset Your Password</h2>
-      <p>We received a request to reset your password for EventMgmt. Click the button below to choose a new password:</p>
-      <p style="margin: 24px 0;">
-        <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-          Reset Password
-        </a>
-      </p>
-      <p style="color: #64748b; font-size: 14px;">Or copy and paste this link in your browser:</p>
-      <p style="color: #64748b; font-size: 13px; word-break: break-all;">${resetUrl}</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #1e293b; margin-top: 0;">Reset Your Password</h2>
+      <p style="color: #475569; font-size: 15px; line-height: 1.5;">We received a request to reset your password for EventMgmt. Use the 6-digit code below to set a new password:</p>
+      <div style="margin: 28px 0; text-align: center;">
+        <span style="display: inline-block; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #2563eb; background: #eff6ff; padding: 14px 28px; border-radius: 8px; border: 1px dashed #bfdbfe;">
+          ${otp}
+        </span>
+      </div>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 4px;">This reset code <strong>expires in 10 minutes</strong> and allows at most 5 attempts.</p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-      <p style="color: #94a3b8; font-size: 12px;">This link will expire in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
+      <p style="color: #94a3b8; font-size: 12px; margin: 0;">If you did not request a password reset, you can safely ignore this email.</p>
     </div>
   `;
 
@@ -101,6 +95,6 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     to: email,
     subject: "Reset your password - EventMgmt",
     html,
-    text: `Please reset your password by opening this link: ${resetUrl}`,
+    text: `Your EventMgmt password reset code is: ${otp}. It expires in 10 minutes.`,
   });
 }

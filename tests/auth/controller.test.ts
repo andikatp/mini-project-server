@@ -79,7 +79,7 @@ describe("Auth Controller Handlers", () => {
       value: mock(async (cb: any) => {
         return cb({
           user: { create: mock(async () => mockCreatedUser) },
-          emailVerificationToken: { create: mock(async () => ({})) },
+          emailVerificationCode: { create: mock(async () => ({})) },
         });
       }),
       configurable: true,
@@ -105,18 +105,34 @@ describe("Auth Controller Handlers", () => {
   });
 
   it("verifyEmailHandler should respond with 200", async () => {
-    const req: any = { body: { token: "token-123" } };
+    const validOtp = "123456";
+    const req: any = { body: { email: "test@example.com", otp: validOtp } };
     const res = createMockResponse();
 
-    const origToken = prisma.emailVerificationToken;
+    const origUser = prisma.user;
+    const origCode = prisma.emailVerificationCode;
     const origTransaction = prisma.$transaction;
+    const { hashOtp } = await import("../../src/utils/otp");
 
-    Object.defineProperty(prisma, "emailVerificationToken", {
+    Object.defineProperty(prisma, "user", {
       value: {
-        ...origToken,
+        ...origUser,
         findUnique: mock(async () => ({
-          id: "evt-1",
-          userId: "user-1",
+          id: "u-1",
+          email: "test@example.com",
+          emailVerifiedAt: null,
+        })),
+      },
+      configurable: true,
+    });
+    Object.defineProperty(prisma, "emailVerificationCode", {
+      value: {
+        ...origCode,
+        findFirst: mock(async () => ({
+          id: "evc-1",
+          userId: "u-1",
+          codeHash: hashOtp(validOtp),
+          attempts: 0,
           usedAt: null,
           expiresAt: new Date(Date.now() + 100000),
         })),
@@ -133,8 +149,12 @@ describe("Auth Controller Handlers", () => {
       expect(res.statusCode).toBe(200);
       expect(res.jsonPayload.message).toBe("Email successfully verified");
     } finally {
-      Object.defineProperty(prisma, "emailVerificationToken", {
-        value: origToken,
+      Object.defineProperty(prisma, "user", {
+        value: origUser,
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: origCode,
         configurable: true,
       });
       Object.defineProperty(prisma, "$transaction", {
@@ -257,7 +277,7 @@ describe("Auth Controller Handlers", () => {
     const res = createMockResponse();
 
     const origUser = prisma.user;
-    const origResetToken = prisma.passwordResetToken;
+    const origResetCode = prisma.passwordResetCode;
     const mailSpy = spyOn(mailer, "sendPasswordResetEmail").mockResolvedValue(
       undefined as any,
     );
@@ -272,11 +292,11 @@ describe("Auth Controller Handlers", () => {
       },
       configurable: true,
     });
-    Object.defineProperty(prisma, "passwordResetToken", {
+    Object.defineProperty(prisma, "passwordResetCode", {
       value: {
-        ...origResetToken,
+        ...origResetCode,
         deleteMany: mock(async () => ({ count: 0 })),
-        create: mock(async () => ({ id: "prt-1" })),
+        create: mock(async () => ({ id: "prc-1" })),
       },
       configurable: true,
     });
@@ -284,14 +304,14 @@ describe("Auth Controller Handlers", () => {
     try {
       await forgotPasswordHandler(req, res);
       expect(res.statusCode).toBe(200);
-      expect(res.jsonPayload.message).toContain("password reset link");
+      expect(res.jsonPayload.message).toContain("password reset code");
     } finally {
       Object.defineProperty(prisma, "user", {
         value: origUser,
         configurable: true,
       });
-      Object.defineProperty(prisma, "passwordResetToken", {
-        value: origResetToken,
+      Object.defineProperty(prisma, "passwordResetCode", {
+        value: origResetCode,
         configurable: true,
       });
       mailSpy.mockRestore();
@@ -299,21 +319,41 @@ describe("Auth Controller Handlers", () => {
   });
 
   it("resetPasswordHandler should call resetPasswordService and return 200", async () => {
-    const req: any = { body: { token: "token-1", password: "newpassword123" } };
+    const validOtp = "123456";
+    const req: any = {
+      body: {
+        email: "user@example.com",
+        otp: validOtp,
+        password: "newpassword123",
+      },
+    };
     const res = createMockResponse();
 
-    const origResetToken = prisma.passwordResetToken;
+    const origUser = prisma.user;
+    const origResetCode = prisma.passwordResetCode;
     const origTransaction = prisma.$transaction;
+    const { hashOtp } = await import("../../src/utils/otp");
 
-    Object.defineProperty(prisma, "passwordResetToken", {
+    Object.defineProperty(prisma, "user", {
       value: {
-        ...origResetToken,
+        ...origUser,
         findUnique: mock(async () => ({
-          id: "prt-1",
+          id: "u-1",
+          email: "user@example.com",
+        })),
+      },
+      configurable: true,
+    });
+    Object.defineProperty(prisma, "passwordResetCode", {
+      value: {
+        ...origResetCode,
+        findFirst: mock(async () => ({
+          id: "prc-1",
           userId: "u-1",
+          codeHash: hashOtp(validOtp),
+          attempts: 0,
           usedAt: null,
           expiresAt: new Date(Date.now() + 100000),
-          user: { id: "u-1" },
         })),
       },
       configurable: true,
@@ -330,8 +370,12 @@ describe("Auth Controller Handlers", () => {
         "Password has been reset successfully",
       );
     } finally {
-      Object.defineProperty(prisma, "passwordResetToken", {
-        value: origResetToken,
+      Object.defineProperty(prisma, "user", {
+        value: origUser,
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "passwordResetCode", {
+        value: origResetCode,
         configurable: true,
       });
       Object.defineProperty(prisma, "$transaction", {

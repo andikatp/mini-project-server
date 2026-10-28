@@ -5,6 +5,7 @@ import {
   logoutService,
   registerUserService,
   requestPasswordReset,
+  resendVerificationCodeService,
   resetPasswordService,
   verifyEmailService,
 } from "../services/auth.service";
@@ -13,7 +14,9 @@ import type {
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  ResendVerificationInput,
   ResetPasswordInput,
+  VerifyEmailInput,
 } from "../validations/auth.validation";
 
 export async function registerHandler(
@@ -24,14 +27,25 @@ export async function registerHandler(
   sendSuccess(
     res,
     201,
-    "Registration successful. A verification email has been sent to your email address. Please check your inbox.",
+    "Registration successful. A verification code has been sent to your email address. Please check your inbox.",
     user,
   );
 }
 
-export async function verifyEmailHandler(req: Request, res: Response) {
-  const { token } = req.body;
-  const result = await verifyEmailService(token);
+export async function verifyEmailHandler(
+  req: Request<{}, {}, VerifyEmailInput>,
+  res: Response,
+) {
+  const result = await verifyEmailService(req.body);
+  sendSuccess(res, 200, result.message, null);
+}
+
+export async function resendVerificationHandler(
+  req: Request<{}, {}, ResendVerificationInput>,
+  res: Response,
+) {
+  const { email } = req.body;
+  const result = await resendVerificationCodeService(email);
   sendSuccess(res, 200, result.message, null);
 }
 
@@ -79,7 +93,7 @@ export async function forgotPasswordHandler(
   sendSuccess(
     res,
     200,
-    "If your email is registered, you will receive a password reset link shortly.",
+    "If your email is registered, you will receive a password reset code shortly.",
     null,
   );
 }
@@ -88,7 +102,6 @@ export async function resetPasswordHandler(
   req: Request<{}, {}, ResetPasswordInput>,
   res: Response,
 ) {
-  const { token, password } = req.body;
-  const result = await resetPasswordService(token, password);
+  const result = await resetPasswordService(req.body);
   sendSuccess(res, 200, result.message, null);
 }

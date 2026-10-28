@@ -14,14 +14,19 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "../libs/mailer.ts";
+import {
+  generateOtpRecord,
+  hashOtp,
+  MAX_OTP_ATTEMPTS,
+} from "../utils/otp.ts";
 import { generateReferralCode } from "../utils/referral";
 import { generateSessionToken, hashSessionToken } from "../utils/session";
-import {
-  generatePasswordResetToken,
-  generateVerificationToken,
-  hashToken,
-} from "../utils/token.ts";
-import type { LoginInput, RegisterInput } from "../validations/auth.validation";
+import type {
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  VerifyEmailInput,
+} from "../validations/auth.validation";
 
 /**
  * Register a new user, create email verification token, send verification email,
@@ -62,10 +67,10 @@ export async function registerUserService(input: RegisterInput) {
   }
 
   const {
-    rawToken: rawVerificationToken,
-    tokenHash: verificationTokenHash,
+    rawOtp,
+    codeHash: verificationCodeHash,
     expiresAt: verificationExpiresAt,
-  } = generateVerificationToken();
+  } = generateOtpRecord();
 
   const result = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
@@ -80,12 +85,13 @@ export async function registerUserService(input: RegisterInput) {
         },
       });
 
-      // Save email verification token
-      await tx.emailVerificationToken.create({
+      // Save email verification OTP code
+      await tx.emailVerificationCode.create({
         data: {
           userId: user.id,
-          tokenHash: verificationTokenHash,
+          codeHash: verificationCodeHash,
           expiresAt: verificationExpiresAt,
+          attempts: 0,
         },
       });
 
@@ -118,7 +124,7 @@ export async function registerUserService(input: RegisterInput) {
       }
 
       try {
-        await sendVerificationEmail(user.email, rawVerificationToken);
+        await sendVerificationEmail(user.email, rawOtp);
       } catch (err: any) {
         logger.error(
           `Registration aborted: failed to dispatch verification email to ${user.email}`,
@@ -139,42 +145,133 @@ export async function registerUserService(input: RegisterInput) {
 }
 
 /**
- * Verify a user's email address using the token sent to their inbox.
+ * Verify a user's email address using the 6-digit OTP code sent to their inbox.
  */
-export async function verifyEmailService(rawToken: string) {
-  const tokenHash = hashToken(rawToken);
+export async function verifyEmailService(input: VerifyEmailInput) {
+  const { email, otp } = input;
 
-  const verificationRecord = await prisma.emailVerificationToken.findUnique({
-    where: { tokenHash },
-    include: { user: true },
+  const user = await prisma.user.findUnique({
+    where: { email },
   });
 
-  if (!verificationRecord) {
-    throw new ValidationError("Invalid or expired verification token");
+  if (!user) {
+    throw new ValidationError("Invalid or expired verification code");
   }
 
-  if (verificationRecord.usedAt) {
-    throw new ValidationError("This verification token has already been used");
+  if (user.emailVerifiedAt) {
+    return { message: "Email has already been verified" };
   }
 
-  if (verificationRecord.expiresAt < new Date()) {
+  const latestCode = await prisma.emailVerificationCode.findFirst({
+    where: {
+      userId: user.id,
+      usedAt: null,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!latestCode) {
     throw new ValidationError(
-      "Verification token has expired. Please request a new one.",
+      "No active verification code found. Please request a new code.",
+    );
+  }
+
+  if (latestCode.attempts >= MAX_OTP_ATTEMPTS) {
+    throw new ValidationError(
+      "Verification code has been invalidated due to too many failed attempts. Please request a new code.",
+    );
+  }
+
+  if (latestCode.expiresAt < new Date()) {
+    throw new ValidationError(
+      "Verification code has expired. Please request a new code.",
+    );
+  }
+
+  const inputHash = hashOtp(otp);
+  if (inputHash !== latestCode.codeHash) {
+    const updated = await prisma.emailVerificationCode.update({
+      where: { id: latestCode.id },
+      data: { attempts: { increment: 1 } },
+    });
+    const remaining = MAX_OTP_ATTEMPTS - updated.attempts;
+    if (remaining <= 0) {
+      throw new ValidationError(
+        "Invalid verification code. This code has been invalidated due to too many failed attempts. Please request a new code.",
+      );
+    }
+    throw new ValidationError(
+      `Invalid verification code. ${remaining} attempt(s) remaining.`,
     );
   }
 
   await prisma.$transaction([
-    prisma.emailVerificationToken.update({
-      where: { id: verificationRecord.id },
+    prisma.emailVerificationCode.update({
+      where: { id: latestCode.id },
       data: { usedAt: new Date() },
     }),
     prisma.user.update({
-      where: { id: verificationRecord.userId },
+      where: { id: user.id },
       data: { emailVerifiedAt: new Date() },
     }),
   ]);
 
   return { message: "Email successfully verified" };
+}
+
+/**
+ * Re-send a fresh 6-digit verification code to the user's email.
+ */
+export async function resendVerificationCodeService(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    // Avoid email enumeration
+    return { message: "If your email is registered and unverified, a verification code has been sent." };
+  }
+
+  if (user.emailVerifiedAt) {
+    throw new ValidationError("Email is already verified");
+  }
+
+  // Invalidate any active unused verification codes
+  await prisma.emailVerificationCode.updateMany({
+    where: {
+      userId: user.id,
+      usedAt: null,
+    },
+    data: {
+      usedAt: new Date(),
+    },
+  });
+
+  const { rawOtp, codeHash, expiresAt } = generateOtpRecord();
+
+  await prisma.emailVerificationCode.create({
+    data: {
+      userId: user.id,
+      codeHash,
+      expiresAt,
+      attempts: 0,
+    },
+  });
+
+  try {
+    await sendVerificationEmail(user.email, rawOtp);
+  } catch (err: any) {
+    logger.error(
+      `Failed to resend verification email to ${user.email}`,
+      err,
+    );
+    throw new AppError(
+      `Failed to send verification email: ${err.message || "Email delivery failed"}.`,
+      500,
+    );
+  }
+
+  return { message: "Verification code sent to your email" };
 }
 
 /**
@@ -267,8 +364,8 @@ export async function logoutService(rawSessionToken: string) {
 
 /**
  * Request a password reset for a given email address.
- * Generates a secure random token, hashes and stores it with an expiration timestamp,
- * and sends an email with the raw reset token.
+ * Generates a 6-digit OTP code, hashes and stores it with a 10-minute expiration,
+ * and sends an email with the raw OTP code.
  *
  * Silently returns if user is not found to prevent account enumeration.
  *
@@ -284,86 +381,107 @@ export async function requestPasswordReset(email: string): Promise<void> {
   }
 
   const {
-    rawToken: rawResetToken,
-    tokenHash,
+    rawOtp,
+    codeHash,
     expiresAt,
-  } = generatePasswordResetToken();
+  } = generateOtpRecord();
 
-  await prisma.passwordResetToken.deleteMany({
+  await prisma.passwordResetCode.deleteMany({
     where: {
       userId: user.id,
       usedAt: null,
     },
   });
 
-  await prisma.passwordResetToken.create({
+  await prisma.passwordResetCode.create({
     data: {
       userId: user.id,
-      tokenHash,
+      codeHash,
       expiresAt,
+      attempts: 0,
     },
   });
 
-  await sendPasswordResetEmail(user.email, rawResetToken).catch(() => null);
+  await sendPasswordResetEmail(user.email, rawOtp).catch(() => null);
 }
 
 /**
- * Complete the password reset process using the reset token and new password.
- * Atomically updates user's passwordHash, marks the reset token as used,
+ * Complete the password reset process using email, the 6-digit OTP code, and the new password.
+ * Atomically updates user's passwordHash, marks the reset code as used,
  * and invalidates all existing active sessions.
  *
- * @param rawToken The raw reset token from the reset link.
- * @param newPassword The new password provided by the user.
+ * @param input Contains email, 6-digit otp code, and new password.
  */
-export async function resetPasswordService(
-  rawToken: string,
-  newPassword: string,
-) {
-  if (!rawToken) {
-    throw new ValidationError("Reset token is required");
-  }
+export async function resetPasswordService(input: ResetPasswordInput) {
+  const { email, otp, password: newPassword } = input;
 
   if (!newPassword || newPassword.length < 6) {
     throw new ValidationError("Password must be at least 6 characters long");
   }
 
-  const tokenHash = hashToken(rawToken);
-
-  const resetRecord = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash },
-    include: { user: true },
+  const user = await prisma.user.findUnique({
+    where: { email },
   });
 
-  if (!resetRecord) {
-    throw new ValidationError("Invalid or expired password reset token");
+  if (!user) {
+    throw new ValidationError("Invalid or expired password reset code");
   }
 
-  if (resetRecord.usedAt) {
+  const latestCode = await prisma.passwordResetCode.findFirst({
+    where: {
+      userId: user.id,
+      usedAt: null,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!latestCode) {
+    throw new ValidationError("Invalid or expired password reset code");
+  }
+
+  if (latestCode.attempts >= MAX_OTP_ATTEMPTS) {
     throw new ValidationError(
-      "This password reset token has already been used",
+      "Reset code has been invalidated due to too many failed attempts. Please request a new code.",
     );
   }
 
-  if (resetRecord.expiresAt < new Date()) {
+  if (latestCode.expiresAt < new Date()) {
     throw new ValidationError(
-      "Password reset token has expired. Please request a new one.",
+      "Password reset code has expired. Please request a new one.",
+    );
+  }
+
+  const inputHash = hashOtp(otp);
+  if (inputHash !== latestCode.codeHash) {
+    const updated = await prisma.passwordResetCode.update({
+      where: { id: latestCode.id },
+      data: { attempts: { increment: 1 } },
+    });
+    const remaining = MAX_OTP_ATTEMPTS - updated.attempts;
+    if (remaining <= 0) {
+      throw new ValidationError(
+        "Invalid reset code. This code has been invalidated due to too many failed attempts. Please request a new code.",
+      );
+    }
+    throw new ValidationError(
+      `Invalid reset code. ${remaining} attempt(s) remaining.`,
     );
   }
 
   const hashedPassword = await argon2.hash(newPassword);
 
-  // Atomically update password, consume token, and revoke active sessions
+  // Atomically update password, consume code, and revoke active sessions
   await prisma.$transaction([
     prisma.user.update({
-      where: { id: resetRecord.userId },
+      where: { id: user.id },
       data: { passwordHash: hashedPassword },
     }),
-    prisma.passwordResetToken.update({
-      where: { id: resetRecord.id },
+    prisma.passwordResetCode.update({
+      where: { id: latestCode.id },
       data: { usedAt: new Date() },
     }),
     prisma.session.deleteMany({
-      where: { userId: resetRecord.userId },
+      where: { userId: user.id },
     }),
   ]);
 
