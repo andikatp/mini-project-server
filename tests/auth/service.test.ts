@@ -12,6 +12,7 @@ import {
   loginUserService,
   logoutService,
   registerUserService,
+  resendVerificationCodeService,
   validateSessionService,
   verifyEmailService,
 } from "../../src/services/auth.service";
@@ -96,7 +97,7 @@ describe("Auth Service Core", () => {
       const mockTransaction = mock(async (cb: any) => {
         const tx = {
           user: { create: mock(async () => mockCreatedUser) },
-          emailVerificationToken: { create: mock(async () => ({})) },
+          emailVerificationCode: { create: mock(async () => ({})) },
         };
         return cb(tx);
       });
@@ -158,7 +159,7 @@ describe("Auth Service Core", () => {
       const mockTransaction = mock(async (cb: any) => {
         const tx = {
           user: { create: mock(async () => mockCreatedUser) },
-          emailVerificationToken: { create: mock(async () => ({})) },
+          emailVerificationCode: { create: mock(async () => ({})) },
         };
         return cb(tx);
       });
@@ -196,66 +197,223 @@ describe("Auth Service Core", () => {
   });
 
   describe("verifyEmailService", () => {
-    it("should throw ValidationError if token does not exist", async () => {
-      const origToken = prisma.emailVerificationToken;
+    it("should throw ValidationError if user does not exist", async () => {
+      const origUser = prisma.user;
       const mockFindUnique = mock(async () => null);
 
-      Object.defineProperty(prisma, "emailVerificationToken", {
-        value: { ...origToken, findUnique: mockFindUnique },
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
         configurable: true,
       });
 
       try {
-        await expect(verifyEmailService("invalid-raw-token")).rejects.toThrow(
-          ValidationError,
-        );
+        await expect(
+          verifyEmailService({ email: "notfound@example.com", otp: "123456" }),
+        ).rejects.toThrow(ValidationError);
       } finally {
-        Object.defineProperty(prisma, "emailVerificationToken", {
-          value: origToken,
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
           configurable: true,
         });
       }
     });
 
-    it("should throw ValidationError if verification token was already used", async () => {
-      const origToken = prisma.emailVerificationToken;
-      const mockFindUnique = mock(async () => ({
-        id: "evt-1",
-        usedAt: new Date(),
+    it("should throw ValidationError if no active verification code found", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
+
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+        emailVerifiedAt: null,
+      }));
+      const mockFindCode = mock(async () => null);
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: { ...origCode, findFirst: mockFindCode },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          verifyEmailService({ email: "alice@example.com", otp: "123456" }),
+        ).rejects.toThrow(ValidationError);
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should throw ValidationError if verification code has expired", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
+
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+        emailVerifiedAt: null,
+      }));
+      const mockFindCode = mock(async () => ({
+        id: "evc-1",
+        userId: "user-1",
+        codeHash: "somehash",
+        attempts: 0,
+        usedAt: null,
+        expiresAt: new Date(Date.now() - 10000), // Expired
+      }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: { ...origCode, findFirst: mockFindCode },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          verifyEmailService({ email: "alice@example.com", otp: "123456" }),
+        ).rejects.toThrow("Verification code has expired");
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should increment attempts and reject if code does not match", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
+      const mockUpdate = mock(async () => ({ attempts: 1 }));
+
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+        emailVerifiedAt: null,
+      }));
+      const mockFindCode = mock(async () => ({
+        id: "evc-1",
+        userId: "user-1",
+        codeHash: "actual-hash",
+        attempts: 0,
+        usedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       }));
 
-      Object.defineProperty(prisma, "emailVerificationToken", {
-        value: { ...origToken, findUnique: mockFindUnique },
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: { ...origCode, findFirst: mockFindCode, update: mockUpdate },
         configurable: true,
       });
 
       try {
-        await expect(verifyEmailService("used-token")).rejects.toThrow(
-          ValidationError,
-        );
+        await expect(
+          verifyEmailService({ email: "alice@example.com", otp: "999999" }),
+        ).rejects.toThrow("Invalid verification code. 4 attempt(s) remaining.");
+        expect(mockUpdate).toHaveBeenCalled();
       } finally {
-        Object.defineProperty(prisma, "emailVerificationToken", {
-          value: origToken,
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
           configurable: true,
         });
       }
     });
 
-    it("should successfully verify email and mark token as used", async () => {
-      const origToken = prisma.emailVerificationToken;
+    it("should reject if code already reached maximum 5 failed attempts", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
+
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+        emailVerifiedAt: null,
+      }));
+      const mockFindCode = mock(async () => ({
+        id: "evc-1",
+        userId: "user-1",
+        codeHash: "actual-hash",
+        attempts: 5,
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 100000),
+      }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: { ...origCode, findFirst: mockFindCode },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          verifyEmailService({ email: "alice@example.com", otp: "123456" }),
+        ).rejects.toThrow("Verification code has been invalidated due to too many failed attempts");
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should successfully verify email and mark code as used", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
       const origTransaction = prisma.$transaction;
 
-      const mockFindUnique = mock(async () => ({
-        id: "evt-1",
+      const { hashOtp } = await import("../../src/utils/otp");
+      const validOtp = "123456";
+
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+        emailVerifiedAt: null,
+      }));
+      const mockFindCode = mock(async () => ({
+        id: "evc-1",
         userId: "user-1",
+        codeHash: hashOtp(validOtp),
+        attempts: 0,
         usedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       }));
       const mockTransaction = mock(async () => [{}, {}]);
 
-      Object.defineProperty(prisma, "emailVerificationToken", {
-        value: { ...origToken, findUnique: mockFindUnique },
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: { ...origCode, findFirst: mockFindCode },
         configurable: true,
       });
       Object.defineProperty(prisma, "$transaction", {
@@ -264,18 +422,104 @@ describe("Auth Service Core", () => {
       });
 
       try {
-        const result = await verifyEmailService("valid-token");
+        const result = await verifyEmailService({
+          email: "alice@example.com",
+          otp: validOtp,
+        });
         expect(result.message).toBe("Email successfully verified");
         expect(mockTransaction).toHaveBeenCalled();
       } finally {
-        Object.defineProperty(prisma, "emailVerificationToken", {
-          value: origToken,
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
           configurable: true,
         });
         Object.defineProperty(prisma, "$transaction", {
           value: origTransaction,
           configurable: true,
         });
+      }
+    });
+  });
+
+  describe("resendVerificationCodeService", () => {
+    it("should throw ValidationError if email is already verified", async () => {
+      const origUser = prisma.user;
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "verified@example.com",
+        emailVerifiedAt: new Date(),
+      }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          resendVerificationCodeService("verified@example.com"),
+        ).rejects.toThrow("Email is already verified");
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should invalidate old codes, create new code, and send email", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
+      const mailSpy = spyOn(mailer, "sendVerificationEmail").mockResolvedValue(
+        undefined as any,
+      );
+
+      const mockFindUser = mock(async () => ({
+        id: "user-1",
+        email: "unverified@example.com",
+        emailVerifiedAt: null,
+      }));
+      const mockUpdateMany = mock(async () => ({ count: 1 }));
+      const mockCreate = mock(async () => ({ id: "new-code-1" }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUser },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: {
+          ...origCode,
+          updateMany: mockUpdateMany,
+          create: mockCreate,
+        },
+        configurable: true,
+      });
+
+      try {
+        const result = await resendVerificationCodeService(
+          "unverified@example.com",
+        );
+        expect(result.message).toBe("Verification code sent to your email");
+        expect(mockUpdateMany).toHaveBeenCalled();
+        expect(mockCreate).toHaveBeenCalled();
+        expect(mailSpy).toHaveBeenCalledWith(
+          "unverified@example.com",
+          expect.any(String),
+        );
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
+          configurable: true,
+        });
+        mailSpy.mockRestore();
       }
     });
   });

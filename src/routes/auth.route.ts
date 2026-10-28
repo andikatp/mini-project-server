@@ -5,6 +5,7 @@ import {
   loginHandler,
   logoutHandler,
   registerHandler,
+  resendVerificationHandler,
   resetPasswordHandler,
   verifyEmailHandler,
 } from "../controllers/auth.controller";
@@ -15,6 +16,7 @@ import {
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resendVerificationSchema,
   resetPasswordSchema,
   verifyEmailSchema,
 } from "../validations/auth.validation.ts";
@@ -48,7 +50,7 @@ const router = Router();
  *                 type: string
  *     responses:
  *       201:
- *         description: Registration successful. Verification email sent.
+ *         description: Registration successful. Verification code sent.
  *       400:
  *         description: Validation error
  *       409:
@@ -65,7 +67,7 @@ router.post(
  * @swagger
  * /auth/verify-email:
  *   post:
- *     summary: Verify email address with token from verification email
+ *     summary: Verify email address with 6-digit OTP code
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -73,20 +75,52 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token]
+ *             required: [email, otp]
  *             properties:
- *               token:
+ *               email:
  *                 type: string
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
  *     responses:
  *       200:
  *         description: Email successfully verified
  *       400:
- *         description: Invalid or expired token
+ *         description: Invalid, expired, or locked verification code
  */
 router.post(
   "/verify-email",
   validate({ body: verifyEmailSchema }),
   asyncHandler(verifyEmailHandler),
+);
+
+// POST /api/auth/resend-verification
+/**
+ * @swagger
+ * /auth/resend-verification:
+ *   post:
+ *     summary: Resend a fresh 6-digit verification code to email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Verification code sent
+ *       400:
+ *         description: Validation error or email already verified
+ */
+router.post(
+  "/resend-verification",
+  validate({ body: resendVerificationSchema }),
+  asyncHandler(resendVerificationHandler),
 );
 
 // POST /api/auth/login
@@ -140,7 +174,7 @@ router.post("/logout", asyncHandler(logoutHandler));
  * @swagger
  * /auth/forgot-password:
  *   post:
- *     summary: Request password reset link via email
+ *     summary: Request password reset 6-digit OTP code via email
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -154,7 +188,7 @@ router.post("/logout", asyncHandler(logoutHandler));
  *                 type: string
  *     responses:
  *       200:
- *         description: Password reset link dispatched if email exists
+ *         description: Password reset code dispatched if email exists
  */
 router.post(
   "/forgot-password",
@@ -172,7 +206,7 @@ router.post(
  * @swagger
  * /auth/reset-password:
  *   post:
- *     summary: Reset user password using token
+ *     summary: Reset user password using 6-digit OTP code
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -180,23 +214,25 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token, password]
+ *             required: [email, otp, password]
  *             properties:
- *               token:
+ *               email:
  *                 type: string
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
  *               password:
  *                 type: string
  *     responses:
  *       200:
  *         description: Password reset successfully
  *       400:
- *         description: Invalid or expired token, or invalid password
+ *         description: Invalid, expired, or locked reset code, or invalid password
  */
 router.post(
   "/reset-password",
   validate({ body: resetPasswordSchema }),
   asyncHandler(resetPasswordHandler),
 );
-
 
 export default router;

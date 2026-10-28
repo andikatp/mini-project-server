@@ -3,7 +3,9 @@ import {
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resendVerificationSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
 } from "../../src/validations/auth.validation";
 
 describe("Auth Validation Schemas", () => {
@@ -83,6 +85,48 @@ describe("Auth Validation Schemas", () => {
     });
   });
 
+  describe("verifyEmailSchema", () => {
+    it("should accept valid email and 6-digit otp", () => {
+      const result = verifyEmailSchema.safeParse({
+        email: "user@example.com",
+        otp: "123456",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should reject non-6-digit otp", () => {
+      const result = verifyEmailSchema.safeParse({
+        email: "user@example.com",
+        otp: "12345",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject non-numeric otp", () => {
+      const result = verifyEmailSchema.safeParse({
+        email: "user@example.com",
+        otp: "12a456",
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("resendVerificationSchema", () => {
+    it("should accept valid email", () => {
+      const result = resendVerificationSchema.safeParse({
+        email: "user@example.com",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should reject invalid email", () => {
+      const result = resendVerificationSchema.safeParse({
+        email: "not-an-email",
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
   describe("forgotPasswordSchema", () => {
     it("should accept valid email", () => {
       const result = forgotPasswordSchema.safeParse({
@@ -98,17 +142,19 @@ describe("Auth Validation Schemas", () => {
   });
 
   describe("resetPasswordSchema", () => {
-    it("should accept valid token and password", () => {
+    it("should accept valid email, 6-digit otp, and password", () => {
       const result = resetPasswordSchema.safeParse({
-        token: "sample-token-abc",
+        email: "user@example.com",
+        otp: "654321",
         password: "new-valid-password",
       });
       expect(result.success).toBe(true);
     });
 
-    it("should reject empty token", () => {
+    it("should reject invalid otp format", () => {
       const result = resetPasswordSchema.safeParse({
-        token: "",
+        email: "user@example.com",
+        otp: "wrong",
         password: "new-valid-password",
       });
       expect(result.success).toBe(false);
@@ -116,7 +162,8 @@ describe("Auth Validation Schemas", () => {
 
     it("should reject short password", () => {
       const result = resetPasswordSchema.safeParse({
-        token: "token-123",
+        email: "user@example.com",
+        otp: "123456",
         password: "123",
       });
       expect(result.success).toBe(false);
