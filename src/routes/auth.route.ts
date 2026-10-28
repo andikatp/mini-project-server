@@ -8,6 +8,7 @@ import {
   resendVerificationHandler,
   resetPasswordHandler,
   verifyEmailHandler,
+  verifyResetPasswordHandler,
 } from "../controllers/auth.controller";
 import { asyncHandler } from "../middlewares/asyncHandler.ts";
 import { requireAuth } from "../middlewares/auth.middleware.ts";
@@ -19,6 +20,7 @@ import {
   resendVerificationSchema,
   resetPasswordSchema,
   verifyEmailSchema,
+  verifyResetPasswordSchema,
 } from "../validations/auth.validation.ts";
 
 const router = Router();
@@ -201,12 +203,12 @@ router.post(
   asyncHandler(forgotPasswordHandler),
 );
 
-// POST /api/auth/reset-password
+// POST /api/auth/verify-reset-password
 /**
  * @swagger
- * /auth/reset-password:
+ * /auth/verify-reset-password:
  *   post:
- *     summary: Reset user password using 6-digit OTP code
+ *     summary: Verify 6-digit OTP code for password reset and receive one-time reset token
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -214,20 +216,49 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, otp, password]
+ *             required: [email, otp]
  *             properties:
  *               email:
  *                 type: string
  *               otp:
  *                 type: string
  *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Reset code verified successfully; returns one-time reset token
+ *       400:
+ *         description: Invalid, expired, or locked reset code
+ */
+router.post(
+  "/verify-reset-password",
+  validate({ body: verifyResetPasswordSchema }),
+  asyncHandler(verifyResetPasswordHandler),
+);
+
+// POST /api/auth/reset-password
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset user password using one-time reset token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [resetToken, password]
+ *             properties:
+ *               resetToken:
+ *                 type: string
  *               password:
  *                 type: string
  *     responses:
  *       200:
  *         description: Password reset successfully
  *       400:
- *         description: Invalid, expired, or locked reset code, or invalid password
+ *         description: Invalid or expired reset token, or invalid password
  */
 router.post(
   "/reset-password",
