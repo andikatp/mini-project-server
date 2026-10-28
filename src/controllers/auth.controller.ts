@@ -8,6 +8,7 @@ import {
   resendVerificationCodeService,
   resetPasswordService,
   verifyEmailService,
+  verifyResetPasswordService,
 } from "../services/auth.service";
 import { sendSuccess } from "../utils/response";
 import type {
@@ -17,6 +18,7 @@ import type {
   ResendVerificationInput,
   ResetPasswordInput,
   VerifyEmailInput,
+  VerifyResetPasswordInput,
 } from "../validations/auth.validation";
 
 export async function registerHandler(
@@ -37,7 +39,15 @@ export async function verifyEmailHandler(
   res: Response,
 ) {
   const result = await verifyEmailService(req.body);
-  sendSuccess(res, 200, result.message, null);
+
+  res.cookie(SESSION_CONFIG.cookieName, result.sessionToken, {
+    httpOnly: true,
+    secure: SESSION_CONFIG.secure,
+    sameSite: "lax",
+    maxAge: SESSION_CONFIG.maxAgeMs,
+  });
+
+  sendSuccess(res, 200, result.message, { user: result.user });
 }
 
 export async function resendVerificationHandler(
@@ -96,6 +106,14 @@ export async function forgotPasswordHandler(
     "If your email is registered, you will receive a password reset code shortly.",
     null,
   );
+}
+
+export async function verifyResetPasswordHandler(
+  req: Request<{}, {}, VerifyResetPasswordInput>,
+  res: Response,
+) {
+  const result = await verifyResetPasswordService(req.body);
+  sendSuccess(res, 200, result.message, { resetToken: result.resetToken });
 }
 
 export async function resetPasswordHandler(

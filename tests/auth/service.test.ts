@@ -19,9 +19,12 @@ import {
 
 describe("Auth Service Core", () => {
   describe("registerUserService", () => {
-    it("should throw ConflictError if email is already registered", async () => {
+    it("should throw ConflictError if email is already registered and verified", async () => {
       const origUser = prisma.user;
-      const mockFindUnique = mock(async () => ({ id: "existing-user-id" }));
+      const mockFindUnique = mock(async () => ({
+        id: "existing-user-id",
+        emailVerifiedAt: new Date(),
+      }));
 
       Object.defineProperty(prisma, "user", {
         value: { ...origUser, findUnique: mockFindUnique },
@@ -42,6 +45,68 @@ describe("Auth Service Core", () => {
           value: origUser,
           configurable: true,
         });
+      }
+    });
+
+    it("should re-send code and succeed if user already registered but unverified", async () => {
+      const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
+      const mailSpy = spyOn(mailer, "sendVerificationEmail").mockResolvedValue(
+        undefined as any,
+      );
+
+      const unverifiedUser = {
+        id: "unverified-user-1",
+        email: "unverified@example.com",
+        name: "Unverified User",
+        role: "CUSTOMER",
+        passwordHash: "hash-secret",
+        referralCode: "UNVER123",
+        emailVerifiedAt: null,
+      };
+
+      const mockFindUnique = mock(async () => unverifiedUser);
+      const mockUpdateMany = mock(async () => ({ count: 1 }));
+      const mockCreate = mock(async () => ({ id: "new-evc-1" }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: {
+          ...origCode,
+          updateMany: mockUpdateMany,
+          create: mockCreate,
+        },
+        configurable: true,
+      });
+
+      try {
+        const result = await registerUserService({
+          email: "unverified@example.com",
+          password: "password123",
+          name: "Unverified User",
+          role: "CUSTOMER",
+        });
+
+        expect(result.id).toBe("unverified-user-1");
+        expect(result.email).toBe("unverified@example.com");
+        expect((result as any).passwordHash).toBeUndefined();
+        expect(mailSpy).toHaveBeenCalledWith(
+          "unverified@example.com",
+          expect.any(String),
+        );
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
+          configurable: true,
+        });
+        mailSpy.mockRestore();
       }
     });
 
@@ -385,9 +450,10 @@ describe("Auth Service Core", () => {
       }
     });
 
-    it("should successfully verify email and mark code as used", async () => {
+    it("should successfully verify email, create a session, and mark code as used", async () => {
       const origUser = prisma.user;
       const origCode = prisma.emailVerificationCode;
+      const origSession = prisma.session;
       const origTransaction = prisma.$transaction;
 
       const { hashOtp } = await import("../../src/utils/otp");
@@ -396,6 +462,9 @@ describe("Auth Service Core", () => {
       const mockFindUser = mock(async () => ({
         id: "user-1",
         email: "alice@example.com",
+        name: "Alice",
+        role: "CUSTOMER",
+        passwordHash: "hash-secret",
         emailVerifiedAt: null,
       }));
       const mockFindCode = mock(async () => ({
@@ -406,6 +475,7 @@ describe("Auth Service Core", () => {
         usedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       }));
+      const mockSessionCreate = mock(async () => ({ id: "session-1" }));
       const mockTransaction = mock(async () => [{}, {}]);
 
       Object.defineProperty(prisma, "user", {
@@ -414,6 +484,10 @@ describe("Auth Service Core", () => {
       });
       Object.defineProperty(prisma, "emailVerificationCode", {
         value: { ...origCode, findFirst: mockFindCode },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "session", {
+        value: { ...origSession, create: mockSessionCreate },
         configurable: true,
       });
       Object.defineProperty(prisma, "$transaction", {
@@ -427,7 +501,11 @@ describe("Auth Service Core", () => {
           otp: validOtp,
         });
         expect(result.message).toBe("Email successfully verified");
+        expect(result.sessionToken).toBeDefined();
+        expect(result.user?.id).toBe("user-1");
+        expect((result.user as any).passwordHash).toBeUndefined();
         expect(mockTransaction).toHaveBeenCalled();
+        expect(mockSessionCreate).toHaveBeenCalled();
       } finally {
         Object.defineProperty(prisma, "user", {
           value: origUser,
@@ -435,6 +513,10 @@ describe("Auth Service Core", () => {
         });
         Object.defineProperty(prisma, "emailVerificationCode", {
           value: origCode,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "session", {
+          value: origSession,
           configurable: true,
         });
         Object.defineProperty(prisma, "$transaction", {
@@ -579,8 +661,9 @@ describe("Auth Service Core", () => {
       }
     });
 
-    it("should throw AuthenticationError if email is not verified", async () => {
+    it("should throw AuthenticationError and resend code if email is not verified", async () => {
       const origUser = prisma.user;
+      const origCode = prisma.emailVerificationCode;
       const realHashedPassword = await argon2.hash("correct-password");
 
       const mockFindUnique = mock(async () => ({
@@ -589,9 +672,22 @@ describe("Auth Service Core", () => {
         passwordHash: realHashedPassword,
         emailVerifiedAt: null,
       }));
+      const mockUpdateMany = mock(async () => ({ count: 1 }));
+      const mockCreate = mock(async () => ({ id: "evc-1" }));
+      const mailSpy = spyOn(mailer, "sendVerificationEmail").mockResolvedValue(
+        undefined as any,
+      );
 
       Object.defineProperty(prisma, "user", {
         value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "emailVerificationCode", {
+        value: {
+          ...origCode,
+          updateMany: mockUpdateMany,
+          create: mockCreate,
+        },
         configurable: true,
       });
 
@@ -607,6 +703,11 @@ describe("Auth Service Core", () => {
           value: origUser,
           configurable: true,
         });
+        Object.defineProperty(prisma, "emailVerificationCode", {
+          value: origCode,
+          configurable: true,
+        });
+        mailSpy.mockRestore();
       }
     });
 

@@ -51,12 +51,24 @@ Roles: `CUSTOMER`, `EVENT_ORGANIZER`. No platform super-admin.
 ### 4.1 Auth & profile (Andika)
 
 - `AUTH-01` Register as CUSTOMER or EVENT_ORGANIZER. Email unique; role
-  cannot be escalated via crafted requests.
+  cannot be escalated via crafted requests. Registration creates the
+  account unverified (`emailVerifiedAt` empty) and emails the 6-digit OTP
+  code; no session is created before verification. Registering again with
+  the same still-unverified email re-sends the code and continues that
+  account's verification instead of failing as a duplicate.
 - `AUTH-02` Sign in/out + load session. Wrong role/owner → 401/403.
+  Sign-in with correct credentials but an unverified email creates no
+  session; the user is directed to email verification with a fresh code.
+  A successful email verification creates the session (signs the user in
+  without re-entering the password).
 - `AUTH-03` Change password; forgot/reset via emailed 6-digit OTP code.
   Reset codes single-use, hashed at rest, expire within 10 minutes, and are
-  invalidated after 5 failed attempts. Email verification uses the same
-  OTP pattern (codes sent via Resend).
+  invalidated after 5 failed attempts. Reset is a 3-step flow: request the
+  code, verify it (`POST /auth/verify-reset-password`), then set the new
+  password with the one-time reset token that verification issues (hashed
+  at rest, 10-minute expiry); all existing sessions are revoked on reset.
+  Email verification uses the same OTP pattern (codes sent via Resend)
+  but stays a single step — verifying the code is the final action.
 - `AUTH-04` Edit name/avatar. Validate; restrict file type + size.
 - `AUTH-05` Each user gets one immutable unique referral code at signup;
   validate submitted codes during registration.
@@ -159,7 +171,8 @@ fields; soft-cancel over destructive delete for transaction-referenced rows.
 
 Tables: `users` (email UQ, passwordHash, role, referralCode UQ immutable,
 referredByUserId FK), `sessions` (tokenHash UQ, userId FK, expiresAt),
-`password_reset_codes` (codeHash, attempts, userId FK, expiresAt, usedAt),
+`password_reset_codes` (codeHash, attempts, verifiedAt, resetTokenHash,
+resetTokenExpiresAt, userId FK, expiresAt, usedAt),
 `email_verification_codes` (codeHash, attempts, userId FK, expiresAt, usedAt),
 `categories`, `events`
 (organizerId, categoryId, status), `ticket_types` (priceIdr, quota,
@@ -189,8 +202,10 @@ Key indexes: `events(status, startAt)`, `events(categoryId, city)`,
 
 Auth: `POST /auth/register` (referralCode?), `POST /auth/login`,
 `POST /auth/logout`, `GET /auth/me`, `POST /auth/verify-email` (6-digit OTP
-code), `POST /auth/resend-verification`, `POST /auth/forgot-password`,
-`POST /auth/reset-password` (OTP code + new password),
+code; on success creates the session), `POST /auth/resend-verification`,
+`POST /auth/forgot-password`,
+`POST /auth/verify-reset-password` (checks the OTP code; returns a one-time
+reset token), `POST /auth/reset-password` (reset token + new password),
 `PATCH /users/me`, `PATCH /users/me/password`.
 
 Discovery: `GET /categories`, `GET /events` (search/filter/paginate, public),
@@ -248,7 +263,9 @@ conflict. JSON everywhere except multipart uploads.
   reset use 6-digit OTP codes sent via Resend instead of token links.
   Codes are hashed at rest, single-use, expire within 10 minutes, and allow
   at most 5 verification attempts. Schema tables: `email_verification_codes`,
-  `password_reset_codes`.
+  `password_reset_codes`. The reset flow has a separate verify step
+  (`POST /auth/verify-reset-password`) whose success issues the one-time reset
+  token used by `POST /auth/reset-password`.
 - Payment (2026-10-15): manual bank transfer + proof upload. No gateway
   for MVP.
 - Reviews need organizer approval (PENDING → APPROVED/REJECTED).

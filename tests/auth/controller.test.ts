@@ -9,6 +9,7 @@ import {
   registerHandler,
   resetPasswordHandler,
   verifyEmailHandler,
+  verifyResetPasswordHandler,
 } from "../../src/controllers/auth.controller";
 import { prisma } from "../../src/db";
 import * as mailer from "../../src/libs/mailer";
@@ -104,13 +105,14 @@ describe("Auth Controller Handlers", () => {
     }
   });
 
-  it("verifyEmailHandler should respond with 200", async () => {
+  it("verifyEmailHandler should respond with 200, set session cookie, and return user", async () => {
     const validOtp = "123456";
     const req: any = { body: { email: "test@example.com", otp: validOtp } };
     const res = createMockResponse();
 
     const origUser = prisma.user;
     const origCode = prisma.emailVerificationCode;
+    const origSession = prisma.session;
     const origTransaction = prisma.$transaction;
     const { hashOtp } = await import("../../src/utils/otp");
 
@@ -139,6 +141,13 @@ describe("Auth Controller Handlers", () => {
       },
       configurable: true,
     });
+    Object.defineProperty(prisma, "session", {
+      value: {
+        ...origSession,
+        create: mock(async () => ({ id: "s-1" })),
+      },
+      configurable: true,
+    });
     Object.defineProperty(prisma, "$transaction", {
       value: mock(async () => [{}, {}]),
       configurable: true,
@@ -148,6 +157,8 @@ describe("Auth Controller Handlers", () => {
       await verifyEmailHandler(req, res);
       expect(res.statusCode).toBe(200);
       expect(res.jsonPayload.message).toBe("Email successfully verified");
+      expect(res.cookiesSet[SESSION_CONFIG.cookieName]).toBeDefined();
+      expect(res.jsonPayload.data.user.id).toBe("u-1");
     } finally {
       Object.defineProperty(prisma, "user", {
         value: origUser,
@@ -155,6 +166,10 @@ describe("Auth Controller Handlers", () => {
       });
       Object.defineProperty(prisma, "emailVerificationCode", {
         value: origCode,
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "session", {
+        value: origSession,
         configurable: true,
       });
       Object.defineProperty(prisma, "$transaction", {
@@ -318,20 +333,18 @@ describe("Auth Controller Handlers", () => {
     }
   });
 
-  it("resetPasswordHandler should call resetPasswordService and return 200", async () => {
+  it("verifyResetPasswordHandler should call verifyResetPasswordService and return 200 with resetToken", async () => {
     const validOtp = "123456";
     const req: any = {
       body: {
         email: "user@example.com",
         otp: validOtp,
-        password: "newpassword123",
       },
     };
     const res = createMockResponse();
 
     const origUser = prisma.user;
     const origResetCode = prisma.passwordResetCode;
-    const origTransaction = prisma.$transaction;
     const { hashOtp } = await import("../../src/utils/otp");
 
     Object.defineProperty(prisma, "user", {
@@ -355,6 +368,55 @@ describe("Auth Controller Handlers", () => {
           usedAt: null,
           expiresAt: new Date(Date.now() + 100000),
         })),
+        update: mock(async () => ({ id: "prc-1" })),
+      },
+      configurable: true,
+    });
+
+    try {
+      await verifyResetPasswordHandler(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.jsonPayload.message).toBe(
+        "Password reset code verified successfully",
+      );
+      expect(res.jsonPayload.data.resetToken).toBeDefined();
+    } finally {
+      Object.defineProperty(prisma, "user", {
+        value: origUser,
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "passwordResetCode", {
+        value: origResetCode,
+        configurable: true,
+      });
+    }
+  });
+
+  it("resetPasswordHandler should call resetPasswordService and return 200", async () => {
+    const rawResetToken = "valid-reset-token-sample";
+    const req: any = {
+      body: {
+        resetToken: rawResetToken,
+        password: "newpassword123",
+      },
+    };
+    const res = createMockResponse();
+
+    const origResetCode = prisma.passwordResetCode;
+    const origTransaction = prisma.$transaction;
+    const { hashToken } = await import("../../src/utils/token");
+
+    Object.defineProperty(prisma, "passwordResetCode", {
+      value: {
+        ...origResetCode,
+        findUnique: mock(async () => ({
+          id: "prc-1",
+          userId: "u-1",
+          resetTokenHash: hashToken(rawResetToken),
+          usedAt: null,
+          resetTokenExpiresAt: new Date(Date.now() + 100000),
+          user: { id: "u-1" },
+        })),
       },
       configurable: true,
     });
@@ -370,10 +432,6 @@ describe("Auth Controller Handlers", () => {
         "Password has been reset successfully",
       );
     } finally {
-      Object.defineProperty(prisma, "user", {
-        value: origUser,
-        configurable: true,
-      });
       Object.defineProperty(prisma, "passwordResetCode", {
         value: origResetCode,
         configurable: true,

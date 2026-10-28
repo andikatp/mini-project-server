@@ -31,13 +31,18 @@ export const forgotPasswordSchema = z.object({
   email: z.email("Invalid email address format"),
 });
 
-export const resetPasswordSchema = z.object({
+export const verifyResetPasswordSchema = z.object({
   email: z.email("Invalid email address format"),
   otp: z.string().regex(/^\d{6}$/, "Reset code must be a 6-digit number"),
+});
+
+export const resetPasswordSchema = z.object({
+  resetToken: z.string().min(1, "Reset token is required"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type VerifyResetPasswordInput = z.infer<typeof verifyResetPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

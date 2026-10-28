@@ -5,8 +5,10 @@ import * as mailer from "../../src/libs/mailer";
 import {
   requestPasswordReset,
   resetPasswordService,
+  verifyResetPasswordService,
 } from "../../src/services/auth.service";
 import { hashOtp } from "../../src/utils/otp";
+import { hashToken } from "../../src/utils/token";
 
 describe("Password Reset Flow", () => {
   describe("requestPasswordReset", () => {
@@ -91,17 +93,7 @@ describe("Password Reset Flow", () => {
     });
   });
 
-  describe("resetPasswordService", () => {
-    it("should throw ValidationError if new password is too short", async () => {
-      await expect(
-        resetPasswordService({
-          email: "user@example.com",
-          otp: "123456",
-          password: "123",
-        }),
-      ).rejects.toThrow(ValidationError);
-    });
-
+  describe("verifyResetPasswordService", () => {
     it("should throw ValidationError if user does not exist", async () => {
       const origUser = prisma.user;
       const mockFindUnique = mock(async () => null);
@@ -113,10 +105,9 @@ describe("Password Reset Flow", () => {
 
       try {
         await expect(
-          resetPasswordService({
+          verifyResetPasswordService({
             email: "notfound@example.com",
             otp: "123456",
-            password: "newpassword123",
           }),
         ).rejects.toThrow(ValidationError);
       } finally {
@@ -148,10 +139,9 @@ describe("Password Reset Flow", () => {
 
       try {
         await expect(
-          resetPasswordService({
+          verifyResetPasswordService({
             email: "user@example.com",
             otp: "123456",
-            password: "newpassword123",
           }),
         ).rejects.toThrow(ValidationError);
       } finally {
@@ -193,10 +183,9 @@ describe("Password Reset Flow", () => {
 
       try {
         await expect(
-          resetPasswordService({
+          verifyResetPasswordService({
             email: "user@example.com",
             otp: "123456",
-            password: "newpassword123",
           }),
         ).rejects.toThrow(ValidationError);
       } finally {
@@ -211,10 +200,9 @@ describe("Password Reset Flow", () => {
       }
     });
 
-    it("should successfully reset password, mark code used, and revoke sessions on valid OTP", async () => {
+    it("should successfully verify OTP and return a one-time reset token", async () => {
       const origUser = prisma.user;
       const origCode = prisma.passwordResetCode;
-      const origTransaction = prisma.$transaction;
 
       const validOtp = "654321";
 
@@ -230,14 +218,130 @@ describe("Password Reset Flow", () => {
         attempts: 0,
         expiresAt: new Date(Date.now() + 60000),
       }));
-      const mockTransaction = mock(async () => [{}, {}, {}]);
+      const mockUpdate = mock(async () => ({ id: "code-1" }));
 
       Object.defineProperty(prisma, "user", {
         value: { ...origUser, findUnique: mockFindUser },
         configurable: true,
       });
       Object.defineProperty(prisma, "passwordResetCode", {
-        value: { ...origCode, findFirst: mockFindCode },
+        value: { ...origCode, findFirst: mockFindCode, update: mockUpdate },
+        configurable: true,
+      });
+
+      try {
+        const result = await verifyResetPasswordService({
+          email: "user@example.com",
+          otp: validOtp,
+        });
+
+        expect(result.message).toBe("Password reset code verified successfully");
+        expect(typeof result.resetToken).toBe("string");
+        expect(mockUpdate).toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "passwordResetCode", {
+          value: origCode,
+          configurable: true,
+        });
+      }
+    });
+  });
+
+  describe("resetPasswordService", () => {
+    it("should throw ValidationError if reset token is missing", async () => {
+      await expect(
+        resetPasswordService({
+          resetToken: "",
+          password: "newpassword123",
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw ValidationError if new password is too short", async () => {
+      await expect(
+        resetPasswordService({
+          resetToken: "some-reset-token",
+          password: "123",
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw ValidationError if reset token is invalid", async () => {
+      const origCode = prisma.passwordResetCode;
+      const mockFindUnique = mock(async () => null);
+
+      Object.defineProperty(prisma, "passwordResetCode", {
+        value: { ...origCode, findUnique: mockFindUnique },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          resetPasswordService({
+            resetToken: "non-existent-token",
+            password: "newpassword123",
+          }),
+        ).rejects.toThrow(ValidationError);
+      } finally {
+        Object.defineProperty(prisma, "passwordResetCode", {
+          value: origCode,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should throw ValidationError if reset token has already been used", async () => {
+      const origCode = prisma.passwordResetCode;
+      const mockFindUnique = mock(async () => ({
+        id: "code-1",
+        userId: "user-123",
+        usedAt: new Date(),
+        resetTokenExpiresAt: new Date(Date.now() + 60000),
+      }));
+
+      Object.defineProperty(prisma, "passwordResetCode", {
+        value: { ...origCode, findUnique: mockFindUnique },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          resetPasswordService({
+            resetToken: "already-used-token",
+            password: "newpassword123",
+          }),
+        ).rejects.toThrow(ValidationError);
+      } finally {
+        Object.defineProperty(prisma, "passwordResetCode", {
+          value: origCode,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should successfully reset password, mark code used, and revoke sessions on valid reset token", async () => {
+      const origCode = prisma.passwordResetCode;
+      const origTransaction = prisma.$transaction;
+
+      const rawResetToken = "valid-reset-token-sample";
+      const tokenHash = hashToken(rawResetToken);
+
+      const mockFindUnique = mock(async () => ({
+        id: "code-1",
+        userId: "user-123",
+        resetTokenHash: tokenHash,
+        usedAt: null,
+        resetTokenExpiresAt: new Date(Date.now() + 60000),
+        user: { id: "user-123" },
+      }));
+      const mockTransaction = mock(async () => [{}, {}, {}]);
+
+      Object.defineProperty(prisma, "passwordResetCode", {
+        value: { ...origCode, findUnique: mockFindUnique },
         configurable: true,
       });
       Object.defineProperty(prisma, "$transaction", {
@@ -247,8 +351,7 @@ describe("Password Reset Flow", () => {
 
       try {
         const result = await resetPasswordService({
-          email: "user@example.com",
-          otp: validOtp,
+          resetToken: rawResetToken,
           password: "newsecurepassword123",
         });
 
@@ -257,10 +360,6 @@ describe("Password Reset Flow", () => {
         });
         expect(mockTransaction).toHaveBeenCalled();
       } finally {
-        Object.defineProperty(prisma, "user", {
-          value: origUser,
-          configurable: true,
-        });
         Object.defineProperty(prisma, "passwordResetCode", {
           value: origCode,
           configurable: true,

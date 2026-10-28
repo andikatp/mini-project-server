@@ -18,19 +18,23 @@ import {
   generateOtpRecord,
   hashOtp,
   MAX_OTP_ATTEMPTS,
+  OTP_EXPIRATION_MS,
 } from "../utils/otp.ts";
 import { generateReferralCode } from "../utils/referral";
 import { generateSessionToken, hashSessionToken } from "../utils/session";
+import { generateSecureToken, hashToken } from "../utils/token.ts";
 import type {
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
   VerifyEmailInput,
+  VerifyResetPasswordInput,
 } from "../validations/auth.validation";
 
 /**
  * Register a new user, create email verification token, send verification email,
  * and optionally grant referral rewards.
+ * If user already registered but unverified, re-sends the verification code.
  */
 export async function registerUserService(input: RegisterInput) {
   const { email, password, name, role, referralCode } = input;
@@ -40,7 +44,13 @@ export async function registerUserService(input: RegisterInput) {
   });
 
   if (existingUser) {
-    throw new ConflictError("Email is already registered");
+    if (existingUser.emailVerifiedAt) {
+      throw new ConflictError("Email is already registered");
+    }
+    // Re-send code for unverified account and continue verification
+    await resendVerificationCodeService(existingUser.email);
+    const { passwordHash: _passwordHash, ...userWithoutPassword } = existingUser;
+    return userWithoutPassword;
   }
 
   const hashedPassword = await argon2.hash(password);
@@ -216,7 +226,25 @@ export async function verifyEmailService(input: VerifyEmailInput) {
     }),
   ]);
 
-  return { message: "Email successfully verified" };
+  // A successful email verification creates the session (signs the user in)
+  const { token, tokenHash } = generateSessionToken();
+  const expiresAt = new Date(Date.now() + SESSION_CONFIG.maxAgeMs);
+
+  await prisma.session.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    },
+  });
+
+  const { passwordHash: _passwordHash, ...userWithoutPassword } = user;
+
+  return {
+    message: "Email successfully verified",
+    user: userWithoutPassword,
+    sessionToken: token,
+  };
 }
 
 /**
@@ -297,8 +325,9 @@ export async function loginUserService(input: LoginInput) {
   }
 
   if (!user.emailVerifiedAt) {
+    await resendVerificationCodeService(user.email).catch(() => null);
     throw new AuthenticationError(
-      "Please verify your email address before logging in. Check your inbox for the activation link.",
+      "Please verify your email address before logging in. A fresh verification code has been sent to your email.",
     );
   }
 
@@ -406,18 +435,16 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 
 /**
- * Complete the password reset process using email, the 6-digit OTP code, and the new password.
- * Atomically updates user's passwordHash, marks the reset code as used,
- * and invalidates all existing active sessions.
+ * Verify the 6-digit password reset code sent to email (Step 2 of reset flow).
+ * If valid, marks verifiedAt, generates a one-time reset token (10-minute expiry),
+ * and returns the raw reset token to proceed to setting a new password.
  *
- * @param input Contains email, 6-digit otp code, and new password.
+ * @param input Contains email and 6-digit OTP code.
  */
-export async function resetPasswordService(input: ResetPasswordInput) {
-  const { email, otp, password: newPassword } = input;
-
-  if (!newPassword || newPassword.length < 6) {
-    throw new ValidationError("Password must be at least 6 characters long");
-  }
+export async function verifyResetPasswordService(
+  input: VerifyResetPasswordInput,
+) {
+  const { email, otp } = input;
 
   const user = await prisma.user.findUnique({
     where: { email },
@@ -468,20 +495,84 @@ export async function resetPasswordService(input: ResetPasswordInput) {
     );
   }
 
+  // Generate secure one-time reset token (32-byte hex)
+  const { rawToken: resetToken, tokenHash: resetTokenHash } =
+    generateSecureToken();
+  const resetTokenExpiresAt = new Date(Date.now() + OTP_EXPIRATION_MS);
+
+  await prisma.passwordResetCode.update({
+    where: { id: latestCode.id },
+    data: {
+      verifiedAt: new Date(),
+      resetTokenHash,
+      resetTokenExpiresAt,
+    },
+  });
+
+  return {
+    message: "Password reset code verified successfully",
+    resetToken,
+  };
+}
+
+/**
+ * Complete the password reset process using the one-time reset token and new password (Step 3).
+ * Atomically updates user's passwordHash, marks the reset code as used,
+ * and invalidates all existing active sessions.
+ *
+ * @param input Contains resetToken and new password.
+ */
+export async function resetPasswordService(input: ResetPasswordInput) {
+  const { resetToken, password: newPassword } = input;
+
+  if (!resetToken) {
+    throw new ValidationError("Reset token is required");
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    throw new ValidationError("Password must be at least 6 characters long");
+  }
+
+  const resetTokenHash = hashToken(resetToken);
+
+  const resetRecord = await prisma.passwordResetCode.findUnique({
+    where: { resetTokenHash },
+    include: { user: true },
+  });
+
+  if (!resetRecord) {
+    throw new ValidationError("Invalid or expired password reset token");
+  }
+
+  if (resetRecord.usedAt) {
+    throw new ValidationError(
+      "This password reset token has already been used",
+    );
+  }
+
+  if (
+    !resetRecord.resetTokenExpiresAt ||
+    resetRecord.resetTokenExpiresAt < new Date()
+  ) {
+    throw new ValidationError(
+      "Password reset token has expired. Please request a new code.",
+    );
+  }
+
   const hashedPassword = await argon2.hash(newPassword);
 
   // Atomically update password, consume code, and revoke active sessions
   await prisma.$transaction([
     prisma.user.update({
-      where: { id: user.id },
+      where: { id: resetRecord.userId },
       data: { passwordHash: hashedPassword },
     }),
     prisma.passwordResetCode.update({
-      where: { id: latestCode.id },
+      where: { id: resetRecord.id },
       data: { usedAt: new Date() },
     }),
     prisma.session.deleteMany({
-      where: { userId: user.id },
+      where: { userId: resetRecord.userId },
     }),
   ]);
 
