@@ -20,7 +20,7 @@ model User {
     referredBy    User?  @relation("UserReferrals", fields: [referredByUserId], references: [id], onDelete: SetNull)
     referredUsers User[] @relation("UserReferrals")
 
-    refreshTokens          Session[]
+    sessions               Session[]
     passwordResetCodes     PasswordResetCode[]
     pointCredits           PointCredit[]           @relation("ReferrerPoints")
     emailVerificationCodes EmailVerificationCode[]
