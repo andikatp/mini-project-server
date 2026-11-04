@@ -59,7 +59,7 @@ export async function sendVerificationEmail(email: string, otp: string) {
           ${otp}
         </span>
       </div>
-      <p style="color: #64748b; font-size: 14px; margin-bottom: 4px;">This verification code <strong>expires in 10 minutes</strong> and allows at most 5 attempts.</p>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 4px;">This verification code <strong>expires in 10 minutes</strong>.</p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
       <p style="color: #94a3b8; font-size: 12px; margin: 0;">If you did not register for an EventMgmt account, you can safely ignore this email.</p>
     </div>
@@ -85,7 +85,7 @@ export async function sendPasswordResetEmail(email: string, otp: string) {
           ${otp}
         </span>
       </div>
-      <p style="color: #64748b; font-size: 14px; margin-bottom: 4px;">This reset code <strong>expires in 10 minutes</strong> and allows at most 5 attempts.</p>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 4px;">This reset code <strong>expires in 10 minutes</strong>.</p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
       <p style="color: #94a3b8; font-size: 12px; margin: 0;">If you did not request a password reset, you can safely ignore this email.</p>
     </div>

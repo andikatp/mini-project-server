@@ -19,6 +19,16 @@ export class AuthenticationError extends AppError {
   }
 }
 
+/**
+ * Error thrown when an authenticated user does not have permission (403 Forbidden).
+ */
+export class ForbiddenError extends AppError {
+  constructor(message: string = "Forbidden. You do not have permission to access this resource.") {
+    super(message, 403);
+    this.name = "ForbiddenError";
+  }
+}
+
 
 /**
  * Error thrown when a resource already exists (e.g., duplicate email).

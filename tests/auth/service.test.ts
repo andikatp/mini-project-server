@@ -8,6 +8,7 @@ import {
 } from "../../src/errors";
 import * as mailer from "../../src/libs/mailer";
 import {
+  changePasswordService,
   getUserProfileService,
   loginUserService,
   logoutService,
@@ -896,6 +897,129 @@ describe("Auth Service Core", () => {
         const user = await getUserProfileService("user-1");
         expect(user.id).toBe("user-1");
         expect(user.email).toBe("user@example.com");
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+      }
+    });
+  });
+
+  describe("changePasswordService", () => {
+    it("should throw AuthenticationError if user does not exist", async () => {
+      const origUser = prisma.user;
+      const mockFindUnique = mock(async () => null);
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          changePasswordService("non-existent-user", {
+            oldPassword: "oldPassword123",
+            newPassword: "newPassword123",
+          }),
+        ).rejects.toThrow(AuthenticationError);
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should throw ValidationError if current password does not match", async () => {
+      const origUser = prisma.user;
+      const hashedPassword = await argon2.hash("actualOldPassword");
+      const mockFindUnique = mock(async () => ({
+        id: "user-1",
+        passwordHash: hashedPassword,
+      }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          changePasswordService("user-1", {
+            oldPassword: "wrongPassword",
+            newPassword: "newPassword123",
+          }),
+        ).rejects.toThrow(ValidationError);
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should throw ValidationError if new password is identical to old password", async () => {
+      const origUser = prisma.user;
+      const hashedPassword = await argon2.hash("samePassword123");
+      const mockFindUnique = mock(async () => ({
+        id: "user-1",
+        passwordHash: hashedPassword,
+      }));
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique },
+        configurable: true,
+      });
+
+      try {
+        await expect(
+          changePasswordService("user-1", {
+            oldPassword: "samePassword123",
+            newPassword: "samePassword123",
+          }),
+        ).rejects.toThrow(ValidationError);
+      } finally {
+        Object.defineProperty(prisma, "user", {
+          value: origUser,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should successfully update password on valid old and new password", async () => {
+      const origUser = prisma.user;
+      const oldHashed = await argon2.hash("correctOldPassword");
+      const mockFindUnique = mock(async () => ({
+        id: "user-1",
+        passwordHash: oldHashed,
+      }));
+      let updatedData: any = null;
+      const mockUpdate = mock(async ({ data }: any) => {
+        updatedData = data;
+        return { id: "user-1" };
+      });
+
+      Object.defineProperty(prisma, "user", {
+        value: { ...origUser, findUnique: mockFindUnique, update: mockUpdate },
+        configurable: true,
+      });
+
+      try {
+        const result = await changePasswordService("user-1", {
+          oldPassword: "correctOldPassword",
+          newPassword: "freshNewPassword123",
+        });
+
+        expect(result.message).toBe("Password successfully changed");
+        expect(mockUpdate).toHaveBeenCalledTimes(1);
+        expect(updatedData.passwordHash).toBeDefined();
+
+        const isNewPasswordValid = await argon2.verify(
+          updatedData.passwordHash,
+          "freshNewPassword123",
+        );
+        expect(isNewPasswordValid).toBe(true);
       } finally {
         Object.defineProperty(prisma, "user", {
           value: origUser,

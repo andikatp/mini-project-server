@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { SESSION_CONFIG } from "../configs/session.config.ts";
 import {
+  changePasswordService,
   loginUserService,
   logoutService,
   registerUserService,
@@ -12,6 +13,7 @@ import {
 } from "../services/auth.service";
 import { sendSuccess } from "../utils/response";
 import type {
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -121,5 +123,13 @@ export async function resetPasswordHandler(
   res: Response,
 ) {
   const result = await resetPasswordService(req.body);
+  sendSuccess(res, 200, result.message, null);
+}
+
+export async function changePasswordHandler(
+  req: Request<{}, {}, ChangePasswordInput>,
+  res: Response,
+) {
+  const result = await changePasswordService(req.user!.id, req.body);
   sendSuccess(res, 200, result.message, null);
 }
