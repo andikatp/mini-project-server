@@ -15,7 +15,6 @@ const { limit } = req.query as unknown as { limit: number };
 export async function getMyCouponsHandler(req: Request, res: Response) {
 const { limit } = req.query as unknown as { limit: number };
   const coupons = await getUserCouponsService(req.user!.id, limit);
-  const coupons = await getUserCouponsService(req.user!.id, limit);
   sendSuccess(res, 200, "User coupons fetched successfully", { coupons });
 }
 
