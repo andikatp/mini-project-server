@@ -7,15 +7,17 @@ import {
 import { sendSuccess } from "../utils/response";
 
 export async function getMyPointsHandler(req: Request, res: Response) {
-  const limit = req.query.limit ? Number(req.query.limit) : 50;
-  const result = await getUserPointsService(req.user!.id, limit);
+  const page = req.query.page ? Number(req.query.page) : 1;
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const result = await getUserPointsService(req.user!.id, page, limit);
   sendSuccess(res, 200, "User points fetched successfully", result);
 }
 
 export async function getMyCouponsHandler(req: Request, res: Response) {
-  const limit = req.query.limit ? Number(req.query.limit) : 50;
-  const coupons = await getUserCouponsService(req.user!.id, limit);
-  sendSuccess(res, 200, "User coupons fetched successfully", { coupons });
+  const page = req.query.page ? Number(req.query.page) : 1;
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const result = await getUserCouponsService(req.user!.id, page, limit);
+  sendSuccess(res, 200, "User coupons fetched successfully", result);
 }
 
 export async function validateCouponHandler(req: Request, res: Response) {
