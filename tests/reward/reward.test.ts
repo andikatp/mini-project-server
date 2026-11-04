@@ -57,9 +57,9 @@ describe("Reward & Referral Service", () => {
         // pc-1 (10000) + pc-2 (5000) = 15000 (pc-3 is expired)
         expect(result.totalPoints).toBe(15000);
         expect(result.credits.length).toBe(3);
-        expect(result.credits[0].isUsable).toBe(true);
-        expect(result.credits[2].isExpired).toBe(true);
-        expect(result.credits[2].isUsable).toBe(false);
+        expect(result.credits[0]!.isUsable).toBe(true);
+        expect(result.credits[2]!.isExpired).toBe(true);
+        expect(result.credits[2]!.isUsable).toBe(false);
       } finally {
         Object.defineProperty(prisma, "pointCredit", {
           value: origPointCredit,
@@ -102,8 +102,8 @@ describe("Reward & Referral Service", () => {
       try {
         const coupons = await getUserCouponsService("user-1");
         expect(coupons.length).toBe(2);
-        expect(coupons[0].isUsable).toBe(true);
-        expect(coupons[1].isUsable).toBe(false);
+        expect(coupons[0]!.isUsable).toBe(true);
+        expect(coupons[1]!.isUsable).toBe(false);
       } finally {
         Object.defineProperty(prisma, "systemCoupon", {
           value: origCoupon,
