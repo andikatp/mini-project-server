@@ -7,17 +7,22 @@ import {
 import { sendSuccess } from "../utils/response";
 
 export async function getMyPointsHandler(req: Request, res: Response) {
-  const result = await getUserPointsService(req.user!.id);
+  const page = req.query.page ? Number(req.query.page) : 1;
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const result = await getUserPointsService(req.user!.id, page, limit);
   sendSuccess(res, 200, "User points fetched successfully", result);
 }
 
 export async function getMyCouponsHandler(req: Request, res: Response) {
-  const coupons = await getUserCouponsService(req.user!.id);
-  sendSuccess(res, 200, "User coupons fetched successfully", { coupons });
+  const page = req.query.page ? Number(req.query.page) : 1;
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const result = await getUserCouponsService(req.user!.id, page, limit);
+  sendSuccess(res, 200, "User coupons fetched successfully", result);
 }
 
 export async function validateCouponHandler(req: Request, res: Response) {
-  const code = (req.params.code || req.query.code) as string;
+  const rawCode = typeof req.params.code === "string" ? req.params.code : req.query.code;
+  const code = typeof rawCode === "string" ? rawCode : "";
   const coupon = await validateSystemCouponService(req.user!.id, code);
   sendSuccess(res, 200, "Coupon is valid", { coupon });
 }

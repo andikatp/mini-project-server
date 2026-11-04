@@ -2,31 +2,53 @@ import { prisma } from "../db";
 import { NotFoundError, ValidationError } from "../errors";
 
 /**
- * Get customer's active points balance and bucket breakdown.
+ * Get customer's active points balance and bucket breakdown with pagination.
  * Balance = sum of unexpired, unconsumed credits (remainingAmount).
  *
  * @param userId ID of the authenticated user
+ * @param page Current page number (default: 1)
+ * @param limit Items per page (default: 10)
  */
-export async function getUserPointsService(userId: string) {
+export async function getUserPointsService(
+  userId: string,
+  page: number = 1,
+  limit: number = 10,
+) {
   const now = new Date();
+  const safePage = Math.max(page, 1);
+  const safeLimit = Math.min(Math.max(limit, 1), 100);
+  const skip = (safePage - 1) * safeLimit;
 
-  // Fetch all active, unexpired point credits with remaining amount
-  const credits = await prisma.pointCredit.findMany({
+  // 1. Calculate active usable points balance using DB aggregate
+  const aggregateResult = await prisma.pointCredit.aggregate({
     where: {
       userId,
+      expiresAt: { gt: now },
+      remainingAmount: { gt: 0 },
     },
-    orderBy: { expiresAt: "asc" },
+    _sum: {
+      remainingAmount: true,
+    },
   });
 
-  // Calculate active usable points vs expired/consumed points
-  let totalActivePoints = 0;
+  const totalPoints = aggregateResult._sum.remainingAmount ?? 0;
+
+  // 2. Fetch paginated point credits and total count
+  const [credits, total] = await Promise.all([
+    prisma.pointCredit.findMany({
+      where: { userId },
+      orderBy: { expiresAt: "desc" },
+      skip,
+      take: safeLimit,
+    }),
+    prisma.pointCredit.count({
+      where: { userId },
+    }),
+  ]);
+
   const history = credits.map((credit) => {
     const isExpired = credit.expiresAt <= now;
     const isUsable = !isExpired && credit.remainingAmount > 0;
-
-    if (isUsable) {
-      totalActivePoints += credit.remainingAmount;
-    }
 
     return {
       id: credit.id,
@@ -40,27 +62,45 @@ export async function getUserPointsService(userId: string) {
   });
 
   return {
-    totalPoints: totalActivePoints,
+    totalPoints,
     credits: history,
+    page: safePage,
+    limit: safeLimit,
+    total,
+    totalPages: Math.ceil(total / safeLimit),
   };
 }
 
 /**
- * Get customer's system coupons (WELCOME coupons from referrals, etc.).
+ * Get customer's system coupons (WELCOME coupons from referrals, etc.) with pagination.
  *
  * @param userId ID of the authenticated user
+ * @param page Current page number (default: 1)
+ * @param limit Items per page (default: 10)
  */
-export async function getUserCouponsService(userId: string) {
+export async function getUserCouponsService(
+  userId: string,
+  page: number = 1,
+  limit: number = 10,
+) {
   const now = new Date();
+  const safePage = Math.max(page, 1);
+  const safeLimit = Math.min(Math.max(limit, 1), 100);
+  const skip = (safePage - 1) * safeLimit;
 
-  const coupons = await prisma.systemCoupon.findMany({
-    where: {
-      userId,
-    },
-    orderBy: { expiredAt: "asc" },
-  });
+  const [coupons, total] = await Promise.all([
+    prisma.systemCoupon.findMany({
+      where: { userId },
+      orderBy: { expiredAt: "desc" },
+      skip,
+      take: safeLimit,
+    }),
+    prisma.systemCoupon.count({
+      where: { userId },
+    }),
+  ]);
 
-  return coupons.map((coupon) => {
+  const mappedCoupons = coupons.map((coupon) => {
     const isExpired = coupon.expiredAt <= now;
     const isUsable = coupon.status === "AVAILABLE" && !isExpired;
 
@@ -73,6 +113,14 @@ export async function getUserCouponsService(userId: string) {
       isUsable,
     };
   });
+
+  return {
+    coupons: mappedCoupons,
+    page: safePage,
+    limit: safeLimit,
+    total,
+    totalPages: Math.ceil(total / safeLimit),
+  };
 }
 
 /**

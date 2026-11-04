@@ -47,7 +47,14 @@ describe("Reward & Referral Service", () => {
       ];
 
       Object.defineProperty(prisma, "pointCredit", {
-        value: { ...origPointCredit, findMany: mock(async () => mockCredits) },
+        value: {
+          ...origPointCredit,
+          findMany: mock(async () => mockCredits),
+          count: mock(async () => 3),
+          aggregate: mock(async () => ({
+            _sum: { remainingAmount: 15000 },
+          })),
+        },
         configurable: true,
       });
 
@@ -60,6 +67,9 @@ describe("Reward & Referral Service", () => {
         expect(result.credits[0]!.isUsable).toBe(true);
         expect(result.credits[2]!.isExpired).toBe(true);
         expect(result.credits[2]!.isUsable).toBe(false);
+        expect(result.page).toBe(1);
+        expect(result.total).toBe(3);
+        expect(result.totalPages).toBe(1);
       } finally {
         Object.defineProperty(prisma, "pointCredit", {
           value: origPointCredit,
@@ -95,15 +105,22 @@ describe("Reward & Referral Service", () => {
       ];
 
       Object.defineProperty(prisma, "systemCoupon", {
-        value: { ...origCoupon, findMany: mock(async () => mockCoupons) },
+        value: {
+          ...origCoupon,
+          findMany: mock(async () => mockCoupons),
+          count: mock(async () => 2),
+        },
         configurable: true,
       });
 
       try {
-        const coupons = await getUserCouponsService("user-1");
-        expect(coupons.length).toBe(2);
-        expect(coupons[0]!.isUsable).toBe(true);
-        expect(coupons[1]!.isUsable).toBe(false);
+        const result = await getUserCouponsService("user-1");
+        expect(result.coupons.length).toBe(2);
+        expect(result.coupons[0]!.isUsable).toBe(true);
+        expect(result.coupons[1]!.isUsable).toBe(false);
+        expect(result.page).toBe(1);
+        expect(result.total).toBe(2);
+        expect(result.totalPages).toBe(1);
       } finally {
         Object.defineProperty(prisma, "systemCoupon", {
           value: origCoupon,
