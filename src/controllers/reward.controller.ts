@@ -13,7 +13,8 @@ export async function getMyPointsHandler(req: Request, res: Response) {
 }
 
 export async function getMyCouponsHandler(req: Request, res: Response) {
-  const limit = req.query.limit ? Number(req.query.limit) : 50;
+const { limit } = req.query as unknown as { limit: number };
+  const coupons = await getUserCouponsService(req.user!.id, limit);
   const coupons = await getUserCouponsService(req.user!.id, limit);
   sendSuccess(res, 200, "User coupons fetched successfully", { coupons });
 }
