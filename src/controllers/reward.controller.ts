@@ -7,7 +7,8 @@ import {
 import { sendSuccess } from "../utils/response";
 
 export async function getMyPointsHandler(req: Request, res: Response) {
-  const limit = req.query.limit ? Number(req.query.limit) : 50;
+const { limit } = req.query as unknown as { limit: number };
+  const result = await getUserPointsService(req.user!.id, limit);
   const result = await getUserPointsService(req.user!.id, limit);
   sendSuccess(res, 200, "User points fetched successfully", result);
 }
