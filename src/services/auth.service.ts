@@ -24,6 +24,7 @@ import { generateReferralCode } from "../utils/referral";
 import { generateSessionToken, hashSessionToken } from "../utils/session";
 import { generateSecureToken, hashToken } from "../utils/token.ts";
 import type {
+  ChangePasswordInput,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -202,7 +203,10 @@ export async function verifyEmailService(input: VerifyEmailInput) {
   if (inputHash !== latestCode.codeHash) {
     const updated = await prisma.emailVerificationCode.update({
       where: { id: latestCode.id },
-      data: { attempts: { increment: 1 } },
+      data: {
+        attempts: { increment: 1 },
+        ...(latestCode.attempts + 1 >= MAX_OTP_ATTEMPTS && { usedAt: new Date() }),
+      },
     });
     const remaining = MAX_OTP_ATTEMPTS - updated.attempts;
     if (remaining <= 0) {
@@ -482,7 +486,10 @@ export async function verifyResetPasswordService(
   if (inputHash !== latestCode.codeHash) {
     const updated = await prisma.passwordResetCode.update({
       where: { id: latestCode.id },
-      data: { attempts: { increment: 1 } },
+      data: {
+        attempts: { increment: 1 },
+        ...(latestCode.attempts + 1 >= MAX_OTP_ATTEMPTS && { usedAt: new Date() }),
+      },
     });
     const remaining = MAX_OTP_ATTEMPTS - updated.attempts;
     if (remaining <= 0) {
@@ -577,4 +584,47 @@ export async function resetPasswordService(input: ResetPasswordInput) {
   ]);
 
   return { message: "Password has been reset successfully" };
+}
+
+/**
+ * Change password for currently authenticated user.
+ * Verifies old password and replaces with hashed new password.
+ * Revokes all other sessions except current if needed (or revokes all sessions).
+ *
+ * @param userId ID of the authenticated user.
+ * @param input Contains oldPassword and newPassword.
+ */
+export async function changePasswordService(
+  userId: string,
+  input: ChangePasswordInput,
+) {
+  const { oldPassword, newPassword } = input;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new AuthenticationError("User not found");
+  }
+
+  const isPasswordValid = await argon2.verify(user.passwordHash, oldPassword);
+  if (!isPasswordValid) {
+    throw new ValidationError("Current password does not match");
+  }
+
+  if (oldPassword === newPassword) {
+    throw new ValidationError(
+      "New password cannot be the same as your current password",
+    );
+  }
+
+  const newPasswordHash = await argon2.hash(newPassword);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newPasswordHash },
+  });
+
+  return { message: "Password successfully changed" };
 }

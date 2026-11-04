@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  changePasswordHandler,
   forgotPasswordHandler,
   getMeHandler,
   loginHandler,
@@ -12,8 +13,10 @@ import {
 } from "../controllers/auth.controller";
 import { asyncHandler } from "../middlewares/asyncHandler.ts";
 import { requireAuth } from "../middlewares/auth.middleware.ts";
+import { authLimiter } from "../middlewares/rateLimiter.ts";
 import { validate } from "../middlewares/validate.middleware.ts";
 import {
+  changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
@@ -24,6 +27,9 @@ import {
 } from "../validations/auth.validation.ts";
 
 const router = Router();
+
+// Apply auth rate limiter to all authentication routes
+router.use(authLimiter);
 
 // POST /api/auth/register
 /**
@@ -264,6 +270,40 @@ router.post(
   "/reset-password",
   validate({ body: resetPasswordSchema }),
   asyncHandler(resetPasswordHandler),
+);
+
+// POST /api/auth/change-password
+/**
+ * @swagger
+ * /auth/change-password:
+ *   post:
+ *     summary: Change password for currently authenticated user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [oldPassword, newPassword]
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Incorrect old password or validation error
+ *       401:
+ *         description: Not authenticated
+ */
+router.post(
+  "/change-password",
+  requireAuth,
+  validate({ body: changePasswordSchema }),
+  asyncHandler(changePasswordHandler),
 );
 
 export default router;

@@ -8,6 +8,7 @@ import { NotFoundError } from "./errors";
 import { logger } from "./libs/logger.ts";
 import { errorHandler } from "./middlewares/errorHandler.ts";
 import { requestLogger } from "./middlewares/logger.middleware.ts";
+import { generalLimiter } from "./middlewares/rateLimiter.ts";
 import routes from "./routes/index.ts";
 
 const app = express();
@@ -39,6 +40,7 @@ app.use(
 );
 app.use(cookieParser(SESSION_CONFIG.secret));
 app.use(requestLogger);
+app.use(generalLimiter);
 
 app.use("/docs", swaggerRouter);
 

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { SESSION_CONFIG } from "../configs/session.config.ts";
-import { AuthenticationError } from "../errors";
+import { AuthenticationError, ForbiddenError } from "../errors";
 import { validateSessionService } from "../services/auth.service";
 
 // Extend Express Request type to include user & session
@@ -48,4 +48,24 @@ export async function requireAuth(
   req.sessionId = sessionData.session.id;
 
   next();
+}
+
+/**
+ * Middleware that restricts access to specific user roles (e.g., EVENT_ORGANIZER).
+ * Must be placed after `requireAuth`.
+ */
+export function requireRole(...allowedRoles: Array<"CUSTOMER" | "EVENT_ORGANIZER">) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new AuthenticationError("Authentication required.");
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      throw new ForbiddenError(
+        "Forbidden. You do not have permission to access this resource.",
+      );
+    }
+
+    next();
+  };
 }

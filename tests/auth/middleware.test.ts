@@ -1,8 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
 import { SESSION_CONFIG } from "../../src/configs/session.config";
 import { prisma } from "../../src/db";
-import { AuthenticationError } from "../../src/errors";
-import { requireAuth } from "../../src/middlewares/auth.middleware";
+import { AuthenticationError, ForbiddenError } from "../../src/errors";
+import {
+  requireAuth,
+  requireRole,
+} from "../../src/middlewares/auth.middleware";
 
 describe("requireAuth Middleware", () => {
   it("should throw AuthenticationError when session cookie is missing", async () => {
@@ -92,5 +95,41 @@ describe("requireAuth Middleware", () => {
         configurable: true,
       });
     }
+  });
+});
+
+describe("requireRole Middleware", () => {
+  it("should throw AuthenticationError if req.user is undefined", () => {
+    const middleware = requireRole("EVENT_ORGANIZER");
+    const req: any = {};
+    const res: any = {};
+    const next = mock(() => {});
+
+    expect(() => middleware(req, res, next)).toThrow(AuthenticationError);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should throw ForbiddenError if user role is not permitted", () => {
+    const middleware = requireRole("EVENT_ORGANIZER");
+    const req: any = {
+      user: { id: "user-1", role: "CUSTOMER" },
+    };
+    const res: any = {};
+    const next = mock(() => {});
+
+    expect(() => middleware(req, res, next)).toThrow(ForbiddenError);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should call next() if user role matches permitted roles", () => {
+    const middleware = requireRole("EVENT_ORGANIZER");
+    const req: any = {
+      user: { id: "org-1", role: "EVENT_ORGANIZER" },
+    };
+    const res: any = {};
+    const next = mock(() => {});
+
+    middleware(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
   });
 });
