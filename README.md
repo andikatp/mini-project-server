@@ -25,7 +25,7 @@ Ikuti langkah-langkah berikut setelah melakukan `git clone`:
 ### 1. Masuk ke Direktori Proyek
 
 ```bash
-cd mini-project-client
+cd mini-project-server
 ```
 
 ### 2. Install Dependencies
@@ -46,20 +46,32 @@ Buka file `.env` dan masukkan connection string database Neon PostgreSQL milikmu
 
 ```env
 PORT=5000
-DATABASE_URL="postgresql://user:password@ep-xxxx.neon.tech/neondb?sslmode=require"
-DATABASE_URL_POOLED="postgresql://user:password@ep-xxxx.neon.tech/pooled/neondb?sslmode=require"
+APP_VERSION=0.0.1
+# Postgres — your database connection
+DATABASE_URL="YOUR_DATABASE_URL"
+DATABASE_URL_POOLED="YOUR_DATABASE_URL_POOLED"
+# Other
+SESSION_SECRET=your-secret-key
+CLIENT_ORIGIN=http://localhost:3000,http://localhost:5000
+# Resend Email Config
+RESEND_API_KEY="re_your_api_key_here"
+EMAIL_FROM="EventMgmt <noreply@yourdomain.com>"
+# Cloudinary Config
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ### 4. Sinkronisasi Database & Generate Prisma Client
 
-Jalankan sinkronisasi schema database ke Neon dan generate TypeScript types:
+Project ini menggunakan Prisma 7 dengan konfigurasi multi-file (`prisma7.config.ts`). Jalankan script berikut:
 
 ```bash
-# 1. Dorong schema tabel ke database Neon
-bun x prisma db push
+# 1. Generate Prisma Client TypeScript
+bun run prisma:generate
 
-# 2. Generate Prisma Client TypeScript
-bun x prisma generate
+# 2. Push schema model ke database Neon (jika dibutuhkan)
+bun x prisma db push --config prisma7.config.ts
 ```
 
 ### 5. Jalankan Development Server
@@ -69,6 +81,32 @@ bun dev
 ```
 
 Server akan aktif di: **`http://localhost:5000`** 🚀
+
+Dokumentasi Interaktif API (Swagger UI) dapat diakses di:
+👉 **`http://localhost:5000/docs`**
+
+---
+
+## 📚 Ringkasan Endpoint API (`/api/v1`)
+
+| Modul | Method | Endpoint | Deskripsi | Auth |
+| :--- | :---: | :--- | :--- | :---: |
+| **Auth** | `POST` | `/auth/register` | Pendaftaran akun baru (Customer / Organizer) | Publik |
+| | `POST` | `/auth/verify-email` | Verifikasi email via kode 6-digit OTP | Publik |
+| | `POST` | `/auth/resend-verification` | Kirim ulang OTP verifikasi | Publik |
+| | `POST` | `/auth/login` | Login user & generate HttpOnly session cookie | Publik |
+| | `POST` | `/auth/logout` | Logout & revoke session di database | Login |
+| | `GET` | `/auth/me` | Cek profil user yang sedang login | Login |
+| | `POST` | `/auth/forgot-password` | Request OTP reset password via email | Publik |
+| | `POST` | `/auth/verify-reset-password` | Verifikasi OTP reset password & dapatkan resetToken | Publik |
+| | `POST` | `/auth/reset-password` | Ganti password baru dengan resetToken | Publik |
+| | `POST` | `/auth/change-password` | Ganti password saat posisi login | Login |
+| **User** | `GET` | `/users/me` | Ambil detail profil user | Login |
+| | `PATCH` | `/users/me` | Edit profil user (nama, avatarUrl) | Login |
+| **Upload** | `POST` | `/upload/image` | Kompresi gambar (WebP) & upload ke Cloudinary | Login |
+| **Rewards**| `GET` | `/rewards/points` | Cek total saldo & riwayat masa aktif poin | Customer |
+| | `GET` | `/rewards/coupons` | Daftar kupon diskon sistem (`WELCOME-xxx`) | Customer |
+| | `GET` | `/rewards/coupons/:code/validate` | Validasi status & kepemilikan kupon | Customer |
 
 ---
 
@@ -123,21 +161,26 @@ docker compose down
 
 ```text
 ├── prisma/
-│   └── schema.prisma         # Definisi model & schema database
+│   ├── models/               # Definisi model modular (user, reward, coupon)
+│   └── schema.prisma         # Konfigurasi generator & datasource
 ├── public/                   # Asset publik statis
 ├── src/
-│   ├── configs/              # Konfigurasi aplikasi
+│   ├── configs/              # Konfigurasi aplikasi (app, mail, session, cloudinary)
 │   ├── controllers/          # Handler logika request & response
 │   ├── db/
 │   │   └── index.ts          # Inisialisasi koneksi Prisma Client & Neon adapter
+│   ├── docs/                 # Spesifikasi OpenAPI & Swagger UI
+│   ├── errors/               # Custom application error classes (AppError, 401, 403, 404, dll)
 │   ├── generated/            # Output Prisma Client (auto-generated, gitignored)
 │   ├── interfaces/           # Tipe data & DTO TypeScript
-│   ├── libs/                 # Utility & helper function
-│   ├── middlewares/          # Express middlewares (auth, error handler, dll)
-│   ├── routes/               # Definisi endpoint API
-│   ├── services/             # Logika bisnis (business logic)
-│   ├── validations/          # Validasi skema input
+│   ├── libs/                 # Utility external library (logger, mailer)
+│   ├── middlewares/          # Express middlewares (auth, errorHandler, rateLimiter, upload)
+│   ├── routes/               # Definisi router Express & endpoint API
+│   ├── services/             # Logika bisnis (auth, user, reward, cloudinary)
+│   ├── utils/                # Utility helper (image compression, response formatting, otp)
+│   ├── validations/          # Validasi skema Zod (auth, user)
 │   └── app.ts                # Express application entry point
+├── tests/                    # Unit & integration test suites (Bun test)
 ├── .env.example              # Template environment variables
 ├── package.json
 └── tsconfig.json
