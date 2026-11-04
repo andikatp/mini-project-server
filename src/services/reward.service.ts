@@ -6,27 +6,37 @@ import { NotFoundError, ValidationError } from "../errors";
  * Balance = sum of unexpired, unconsumed credits (remainingAmount).
  *
  * @param userId ID of the authenticated user
+ * @param limit Optional limit for credit history entries (default: 50)
  */
-export async function getUserPointsService(userId: string) {
+export async function getUserPointsService(userId: string, limit: number = 50) {
   const now = new Date();
 
-  // Fetch all active, unexpired point credits with remaining amount
+  // 1. Calculate active usable points balance using DB aggregate for performance
+  const aggregateResult = await prisma.pointCredit.aggregate({
+    where: {
+      userId,
+      expiresAt: { gt: now },
+      remainingAmount: { gt: 0 },
+    },
+    _sum: {
+      remainingAmount: true,
+    },
+  });
+
+  const totalActivePoints = aggregateResult._sum.remainingAmount ?? 0;
+
+  // 2. Fetch bounded history of recent point credits
   const credits = await prisma.pointCredit.findMany({
     where: {
       userId,
     },
-    orderBy: { expiresAt: "asc" },
+    orderBy: { expiresAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 100),
   });
 
-  // Calculate active usable points vs expired/consumed points
-  let totalActivePoints = 0;
   const history = credits.map((credit) => {
     const isExpired = credit.expiresAt <= now;
     const isUsable = !isExpired && credit.remainingAmount > 0;
-
-    if (isUsable) {
-      totalActivePoints += credit.remainingAmount;
-    }
 
     return {
       id: credit.id,
@@ -49,15 +59,17 @@ export async function getUserPointsService(userId: string) {
  * Get customer's system coupons (WELCOME coupons from referrals, etc.).
  *
  * @param userId ID of the authenticated user
+ * @param limit Optional limit for coupons (default: 50)
  */
-export async function getUserCouponsService(userId: string) {
+export async function getUserCouponsService(userId: string, limit: number = 50) {
   const now = new Date();
 
   const coupons = await prisma.systemCoupon.findMany({
     where: {
       userId,
     },
-    orderBy: { expiredAt: "asc" },
+    orderBy: { expiredAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 100),
   });
 
   return coupons.map((coupon) => {

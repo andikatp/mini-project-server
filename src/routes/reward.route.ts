@@ -6,6 +6,11 @@ import {
 } from "../controllers/reward.controller";
 import { asyncHandler } from "../middlewares/asyncHandler";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
+import { validate } from "../middlewares/validate.middleware";
+import {
+  paginationQuerySchema,
+  validateCouponParamsSchema,
+} from "../validations/reward.validation";
 
 const router = Router();
 
@@ -18,6 +23,12 @@ router.use(requireAuth, requireRole("CUSTOMER"));
  *   get:
  *     summary: Get active points balance & expiration history for the logged-in user
  *     tags: [Rewards]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
  *     responses:
  *       200:
  *         description: Points balance fetched successfully
@@ -26,7 +37,11 @@ router.use(requireAuth, requireRole("CUSTOMER"));
  *       403:
  *         description: Forbidden (Customers only)
  */
-router.get("/points", asyncHandler(getMyPointsHandler));
+router.get(
+  "/points",
+  validate({ query: paginationQuerySchema }),
+  asyncHandler(getMyPointsHandler),
+);
 
 /**
  * @swagger
@@ -34,6 +49,12 @@ router.get("/points", asyncHandler(getMyPointsHandler));
  *   get:
  *     summary: Get list of system coupons belonging to the logged-in user
  *     tags: [Rewards]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
  *     responses:
  *       200:
  *         description: User coupons list fetched successfully
@@ -42,7 +63,11 @@ router.get("/points", asyncHandler(getMyPointsHandler));
  *       403:
  *         description: Forbidden (Customers only)
  */
-router.get("/coupons", asyncHandler(getMyCouponsHandler));
+router.get(
+  "/coupons",
+  validate({ query: paginationQuerySchema }),
+  asyncHandler(getMyCouponsHandler),
+);
 
 /**
  * @swagger
@@ -64,7 +89,11 @@ router.get("/coupons", asyncHandler(getMyCouponsHandler));
  *       404:
  *         description: Coupon not found
  */
-router.get("/coupons/:code/validate", asyncHandler(validateCouponHandler));
+router.get(
+  "/coupons/:code/validate",
+  validate({ params: validateCouponParamsSchema }),
+  asyncHandler(validateCouponHandler),
+);
 
 export default router;
 

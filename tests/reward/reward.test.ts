@@ -47,7 +47,13 @@ describe("Reward & Referral Service", () => {
       ];
 
       Object.defineProperty(prisma, "pointCredit", {
-        value: { ...origPointCredit, findMany: mock(async () => mockCredits) },
+        value: {
+          ...origPointCredit,
+          findMany: mock(async () => mockCredits),
+          aggregate: mock(async () => ({
+            _sum: { remainingAmount: 15000 },
+          })),
+        },
         configurable: true,
       });
 
