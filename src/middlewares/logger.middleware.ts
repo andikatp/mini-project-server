@@ -7,12 +7,23 @@ import { logger } from "../libs/logger.ts";
  */
 function sanitizePayload(payload: any): any {
   if (!payload || typeof payload !== "object") return payload;
-  const sanitized = { ...payload };
-  const sensitiveKeys = ["password", "oldPassword", "newPassword", "token", "sessionToken", "secret"];
 
-  for (const key of sensitiveKeys) {
-    if (key in sanitized) {
+  const sanitized = Array.isArray(payload) ? [...payload] : { ...payload };
+  const sensitiveKeys = new Set([
+    "password",
+    "oldPassword",
+    "newPassword",
+    "token",
+    "sessionToken",
+    "secret",
+    "resetToken",
+  ]);
+
+  for (const key of Object.keys(sanitized)) {
+    if (sensitiveKeys.has(key)) {
       sanitized[key] = "***";
+    } else if (typeof sanitized[key] === "object" && sanitized[key] !== null) {
+      sanitized[key] = sanitizePayload(sanitized[key]);
     }
   }
 
