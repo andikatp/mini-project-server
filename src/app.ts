@@ -78,16 +78,16 @@ app.use(errorHandler);
 if (import.meta.main) {
   const server = app.listen(APP_CONFIG.port, "0.0.0.0", () => {
     logger.info(
-      `🚀 Server running on http://localhost:${APP_CONFIG.port} (Version: ${APP_CONFIG.version})`,
+      `Server running on http://localhost:${APP_CONFIG.port} (Version: ${APP_CONFIG.version})`,
     );
   });
 
   const shutdown = (signal: string) => {
-    logger.info(`${signal} received — shutting down gracefully…`);
+    logger.info(`${signal} received - shutting down gracefully...`);
     server.close(async () => {
       const { prisma } = await import("./db/index.ts");
       await prisma.$disconnect();
-      logger.info("Server closed. Bye 👋");
+      logger.info("Server closed.");
       process.exit(0);
     });
   };

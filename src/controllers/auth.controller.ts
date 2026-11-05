@@ -45,7 +45,7 @@ export async function verifyEmailHandler(
   res.cookie(SESSION_CONFIG.cookieName, result.sessionToken, {
     httpOnly: true,
     secure: SESSION_CONFIG.secure,
-    sameSite: "lax",
+    sameSite: SESSION_CONFIG.sameSite,
     maxAge: SESSION_CONFIG.maxAgeMs,
   });
 
@@ -71,7 +71,7 @@ export async function loginHandler(
   res.cookie(SESSION_CONFIG.cookieName, sessionToken, {
     httpOnly: true,
     secure: SESSION_CONFIG.secure,
-    sameSite: "lax",
+    sameSite: SESSION_CONFIG.sameSite,
     maxAge: SESSION_CONFIG.maxAgeMs,
   });
 
@@ -90,7 +90,7 @@ export async function logoutHandler(req: Request, res: Response) {
   res.clearCookie(SESSION_CONFIG.cookieName, {
     httpOnly: true,
     secure: SESSION_CONFIG.secure,
-    sameSite: "lax",
+    sameSite: SESSION_CONFIG.sameSite,
   });
 
   sendSuccess(res, 200, "Logged out successfully", null);
