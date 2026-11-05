@@ -14,6 +14,10 @@ import routes from "./routes/index.ts";
 const app = express();
 app.disable("x-powered-by");
 
+// Trust first proxy (Render, Cloudflare, Nginx reverse proxy)
+// Required by express-rate-limit to read X-Forwarded-For correctly
+app.set("trust proxy", 1);
+
 app.use(express.json());
 
 const configuredOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:3000")
