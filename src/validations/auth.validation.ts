@@ -2,16 +2,21 @@ import { z } from "zod";
 
 const UserRoleSchema = z.enum(["CUSTOMER", "EVENT_ORGANIZER"]);
 
+// Normalized email schema: trims whitespace and converts to lowercase
+const emailSchema = z
+  .email("Invalid email address format")
+  .transform((val) => val.trim().toLowerCase());
+
 export const registerSchema = z.object({
-  email: z.email("Invalid email address format"),
+  email: emailSchema,
   password: z.string().min(6, "Password must be at least 6 characters long"),
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required").transform((val) => val.trim()),
   role: UserRoleSchema.default("CUSTOMER"),
   referralCode: z.string().optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.email("Invalid email address format"),
+  email: emailSchema,
   password: z.string().min(1, "Password is required"),
 });
 
@@ -19,20 +24,20 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
 export const verifyEmailSchema = z.object({
-  email: z.email("Invalid email address format"),
+  email: emailSchema,
   otp: z.string().regex(/^\d{6}$/, "Verification code must be a 6-digit number"),
 });
 
 export const resendVerificationSchema = z.object({
-  email: z.email("Invalid email address format"),
+  email: emailSchema,
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.email("Invalid email address format"),
+  email: emailSchema,
 });
 
 export const verifyResetPasswordSchema = z.object({
-  email: z.email("Invalid email address format"),
+  email: emailSchema,
   otp: z.string().regex(/^\d{6}$/, "Reset code must be a 6-digit number"),
 });
 
