@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "test": "bun test",
+    "db:seed": "bun prisma/seed.ts",
     "prisma:generate": "prisma generate --config prisma7.config.ts",
     "prisma:validate": "prisma validate --config prisma7.config.ts"
   },
