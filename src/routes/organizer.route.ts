@@ -6,6 +6,7 @@ import {
   getEventAttendeesHandler,
   getOrganizerTransactionsHandler,
   rejectTransactionHandler,
+  getOrganizerEventsHandler,
 } from "../controllers/organizer.controller";
 import { asyncHandler } from "../middlewares/asyncHandler";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
@@ -22,6 +23,8 @@ const router = Router();
 
 router.use(asyncHandler(requireAuth));
 router.use(requireRole("EVENT_ORGANIZER"));
+
+router.get("/events", asyncHandler(getOrganizerEventsHandler));
 
 router.get("/dashboard/summary", asyncHandler(getDashboardSummaryHandler));
 

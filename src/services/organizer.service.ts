@@ -448,3 +448,41 @@ export async function rejectTransactionProof(
 
   return updated;
 }
+
+export async function getOrganizerEvents(organizerId: string) {
+  const events = await prisma.event.findMany({
+    where: { organizerId },
+    include: {
+      category: true,
+      ticketTypes: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    slug: e.slug,
+    description: e.description,
+    bannerUrl: e.bannerUrl,
+    location: e.location,
+    city: e.city,
+    status: e.status,
+    startAt: e.startAt,
+    endAt: e.endAt,
+    category: {
+      id: e.category.id,
+      name: e.category.name,
+      slug: e.category.slug,
+    },
+    ticketsSold: e.ticketTypes.reduce((acc, t) => acc + t.soldQty, 0),
+    totalCapacity: e.ticketTypes.reduce((acc, t) => acc + t.quota, 0),
+    ticketTypes: e.ticketTypes.map((t) => ({
+      id: t.id,
+      name: t.name,
+      priceIdr: t.priceIdr,
+      quota: t.quota,
+      soldQty: t.soldQty,
+    })),
+  }));
+}

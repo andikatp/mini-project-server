@@ -6,6 +6,7 @@ import {
   getOrganizerEventAttendees,
   getOrganizerTransactions,
   rejectTransactionProof,
+  getOrganizerEvents,
 } from "../services/organizer.service";
 import { sendSuccess } from "../utils/response";
 
@@ -60,4 +61,10 @@ export async function rejectTransactionHandler(req: Request, res: Response) {
 
   const updated = await rejectTransactionProof(organizerId, transactionId, reason);
   return sendSuccess(res, 200, "Payment proof rejected successfully", updated);
+}
+
+export async function getOrganizerEventsHandler(req: Request, res: Response) {
+  const organizerId = req.user!.id;
+  const events = await getOrganizerEvents(organizerId);
+  return sendSuccess(res, 200, "Organizer events retrieved successfully", events);
 }
