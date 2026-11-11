@@ -23,3 +23,19 @@ export const rejectProofBodySchema = z.object({
   reason: z.string().min(1, "Rejection reason is required").max(500),
 });
 
+export const organizerTransactionsQuerySchema = z.object({
+  status: z
+    .enum([
+      "WAITING_FOR_PAYMENT",
+      "WAITING_FOR_ADMIN_CONFIRMATION",
+      "DONE",
+      "REJECTED",
+      "EXPIRED",
+      "CANCELED",
+    ])
+    .optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});
+
+

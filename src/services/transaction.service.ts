@@ -223,6 +223,19 @@ export async function createTransaction(
 
     // 2. Adjust ticket quotas: if paid -> increment reservedQty; if free -> increment soldQty
     for (const item of pricing.items) {
+      const currentTicket = await tx.ticketType.findUnique({
+        where: { id: item.ticketTypeId },
+      });
+      if (!currentTicket) {
+        throw new NotFoundError(`Ticket type ${item.ticketTypeId} not found`);
+      }
+      const available = currentTicket.quota - currentTicket.reservedQty - currentTicket.soldQty;
+      if (available < item.quantity) {
+        throw new ConflictError(
+          `Insufficient tickets available for ${item.ticketName} (available: ${available})`,
+        );
+      }
+
       if (isFree) {
         await tx.ticketType.update({
           where: { id: item.ticketTypeId },
@@ -285,6 +298,13 @@ export async function createTransaction(
 
     if (pricing.pointDebits.length > 0) {
       for (const debit of pricing.pointDebits) {
+        const currentCredit = await tx.pointCredit.findUnique({
+          where: { id: debit.pointCreditId },
+        });
+        if (!currentCredit || currentCredit.remainingAmount < debit.amount) {
+          throw new ConflictError("Insufficient point credits remaining");
+        }
+
         await tx.pointCredit.update({
           where: { id: debit.pointCreditId },
           data: { remainingAmount: { decrement: debit.amount } },
@@ -422,12 +442,18 @@ export async function executeRollback(tx: any, prismaClient: any) {
   }
 
   // 3. Restore coupon if one was used
-  if (tx.couponDiscountIdr > 0) {
+  if (tx.couponId) {
+    await prismaClient.systemCoupon.update({
+      where: { id: tx.couponId },
+      data: { status: "AVAILABLE" },
+    });
+  } else if (tx.couponDiscountIdr > 0) {
     const coupon = await prismaClient.systemCoupon.findFirst({
       where: {
         userId: tx.customerId,
         status: "RESERVED",
       },
+      orderBy: { createdAt: "desc" },
     });
     if (coupon) {
       await prismaClient.systemCoupon.update({
@@ -438,7 +464,17 @@ export async function executeRollback(tx: any, prismaClient: any) {
   }
 
   // 4. Restore event voucher if used
-  if (tx.voucherDiscountIdr > 0) {
+  if (tx.voucherId) {
+    const voucher = await prismaClient.eventVoucher.findUnique({
+      where: { id: tx.voucherId },
+    });
+    if (voucher && voucher.usedQty > 0) {
+      await prismaClient.eventVoucher.update({
+        where: { id: voucher.id },
+        data: { usedQty: { decrement: 1 } },
+      });
+    }
+  } else if (tx.voucherDiscountIdr > 0) {
     const voucher = await prismaClient.eventVoucher.findFirst({
       where: { eventId: tx.eventId },
     });

@@ -12,6 +12,7 @@ import { asyncHandler } from "../middlewares/asyncHandler";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import {
+  publicEventParamSchema,
   publicEventsQuerySchema,
 } from "../validations/event.validation";
 import {
@@ -24,7 +25,11 @@ const router = Router();
 // Public discovery
 router.get("/", validate({ query: publicEventsQuerySchema }), asyncHandler(listPublicEventsHandler));
 router.get("/categories", asyncHandler(listCategoriesHandler));
-router.get("/:eventId", asyncHandler(getPublicEventDetailHandler));
+router.get(
+  "/:eventId",
+  validate({ params: publicEventParamSchema }),
+  asyncHandler(getPublicEventDetailHandler),
+);
 
 // Event reviews
 router.get(

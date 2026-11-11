@@ -36,6 +36,7 @@ import {
 import {
   dashboardTimeseriesQuerySchema,
   eventAttendeesQuerySchema,
+  organizerTransactionsQuerySchema,
   rejectProofBodySchema,
   transactionIdParamSchema,
 } from "../validations/organizer.validation";
@@ -96,7 +97,11 @@ router.get(
   asyncHandler(getEventAttendeesHandler),
 );
 
-router.get("/transactions", asyncHandler(getOrganizerTransactionsHandler));
+router.get(
+  "/transactions",
+  validate({ query: organizerTransactionsQuerySchema }),
+  asyncHandler(getOrganizerTransactionsHandler),
+);
 
 router.post(
   "/transactions/:transactionId/accept",

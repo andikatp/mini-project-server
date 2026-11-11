@@ -17,6 +17,8 @@ function sanitizePayload(payload: any): any {
     "sessionToken",
     "secret",
     "resetToken",
+    "otp",
+    "code",
   ]);
 
   for (const key of Object.keys(sanitized)) {

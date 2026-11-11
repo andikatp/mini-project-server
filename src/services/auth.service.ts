@@ -626,5 +626,9 @@ export async function changePasswordService(
     data: { passwordHash: newPasswordHash },
   });
 
+  await prisma.session.deleteMany({
+    where: { userId },
+  });
+
   return { message: "Password successfully changed" };
 }

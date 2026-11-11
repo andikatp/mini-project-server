@@ -4,6 +4,14 @@ export const eventIdParamSchema = z.object({
   eventId: z.uuid("Invalid event ID format"),
 });
 
+export const publicEventParamSchema = z.object({
+  eventId: z
+    .string()
+    .min(1, "Event identifier is required")
+    .max(200)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Invalid event identifier format"),
+});
+
 export const ticketTypeIdParamSchema = z.object({
   ticketTypeId: z.uuid("Invalid ticket type ID format"),
 });
