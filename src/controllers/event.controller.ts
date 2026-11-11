@@ -98,3 +98,4 @@ export async function updateEventVoucherHandler(req: Request, res: Response) {
   const voucher = await updateEventVoucher(organizerId, voucherId, req.body);
   return sendSuccess(res, 200, "Event voucher updated successfully", voucher);
 }
+

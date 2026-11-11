@@ -13,3 +13,4 @@ router.use(requireRole("CUSTOMER"));
 router.post("/preview", validate({ body: checkoutPreviewSchema }), asyncHandler(previewCheckoutHandler));
 
 export default router;
+

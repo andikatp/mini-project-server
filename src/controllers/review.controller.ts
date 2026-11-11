@@ -32,3 +32,4 @@ export async function updateReviewStatusHandler(req: Request, res: Response) {
   const review = await updateReviewStatus(organizerId, reviewId, req.body);
   return sendSuccess(res, 200, "Review status updated successfully", review);
 }
+

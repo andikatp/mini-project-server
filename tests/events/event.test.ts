@@ -40,8 +40,9 @@ describe("Event Service (Feature 1)", () => {
       const result = await listPublicEvents({ page: 1, limit: 10 });
 
       expect(result.events.length).toBe(1);
-      expect(result.events[0].minPriceIdr).toBe(100000);
-      expect(result.events[0].availableTickets).toBe(70 + 150); // (100-10-20) + (200-50)
+      const firstEvent = result.events[0]!;
+      expect(firstEvent.minPriceIdr).toBe(100000);
+      expect(firstEvent.availableTickets).toBe(70 + 150); // (100-10-20) + (200-50)
       expect(result.pagination.total).toBe(1);
 
       prisma.event.findMany = origFindMany;

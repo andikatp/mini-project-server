@@ -147,7 +147,7 @@ describe("Transaction & Checkout Service (Feature 1)", () => {
         },
       };
 
-      const mockTx = {
+      const mockTx: any = {
         id: "tx-1",
         customerId: "cust-1",
         eventId: "evt-1",
