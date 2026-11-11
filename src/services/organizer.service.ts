@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { ForbiddenError, NotFoundError } from "../errors";
+import { executeRollback } from "./transaction.service";
 
 /**
  * Retrieve high-level summary metrics for an organizer's dashboard:
@@ -351,6 +352,8 @@ export async function acceptTransactionProof(organizerId: string, transactionId:
     include: {
       event: true,
       paymentProof: true,
+      items: true,
+      pointAllocations: true,
     },
   });
 
@@ -367,6 +370,43 @@ export async function acceptTransactionProof(organizerId: string, transactionId:
   }
 
   const updated = await prisma.$transaction(async (prismaClient) => {
+    // 1. Move ticket reservations to sold
+    for (const item of tx.items) {
+      await prismaClient.ticketType.update({
+        where: { id: item.ticketTypeId },
+        data: {
+          reservedQty: { decrement: item.quantity },
+          soldQty: { increment: item.quantity },
+        },
+      });
+    }
+
+    // 2. Finalize point allocations
+    if (tx.pointAllocations && tx.pointAllocations.length > 0) {
+      for (const alloc of tx.pointAllocations) {
+        await prismaClient.pointAllocation.update({
+          where: { id: alloc.id },
+          data: { status: "FINALIZED" },
+        });
+      }
+    }
+
+    // 3. Mark coupon REDEEMED if applicable
+    if (tx.couponDiscountIdr > 0) {
+      const coupon = await prismaClient.systemCoupon.findFirst({
+        where: {
+          userId: tx.customerId,
+          status: "RESERVED",
+        },
+      });
+      if (coupon) {
+        await prismaClient.systemCoupon.update({
+          where: { id: coupon.id },
+          data: { status: "REDEEMED" },
+        });
+      }
+    }
+
     const updatedTx = await prismaClient.transaction.update({
       where: { id: transactionId },
       data: {
@@ -408,6 +448,8 @@ export async function rejectTransactionProof(
     include: {
       event: true,
       paymentProof: true,
+      items: true,
+      pointAllocations: true,
     },
   });
 
@@ -424,6 +466,9 @@ export async function rejectTransactionProof(
   }
 
   const updated = await prisma.$transaction(async (prismaClient) => {
+    // Perform rollback matrix
+    await executeRollback(tx, prismaClient);
+
     const updatedTx = await prismaClient.transaction.update({
       where: { id: transactionId },
       data: {

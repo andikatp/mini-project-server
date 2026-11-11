@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const dashboardTimeseriesQuerySchema = z.object({
   granularity: z.enum(["day", "month", "year"]).default("day"),
-  eventId: z.string().uuid().optional(),
+  eventId: z.uuid().optional(),
 });
 
 export const eventAttendeesQuerySchema = z.object({
@@ -12,11 +12,11 @@ export const eventAttendeesQuerySchema = z.object({
 });
 
 export const eventIdParamSchema = z.object({
-  eventId: z.string().uuid("Invalid event ID format"),
+  eventId: z.uuid("Invalid event ID format"),
 });
 
 export const transactionIdParamSchema = z.object({
-  transactionId: z.string().uuid("Invalid transaction ID format"),
+  transactionId: z.uuid("Invalid transaction ID format"),
 });
 
 export const rejectProofBodySchema = z.object({
