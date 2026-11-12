@@ -12,12 +12,10 @@ export async function uploadImageHandler(req: Request, res: Response) {
     throw new ValidationError("No image file provided. Please upload a file with field 'image'.");
   }
 
-  const rawFolder = typeof req.body?.folder === "string" ? req.body.folder.trim() : "";
-  const safeFolderPattern = /^[a-zA-Z0-9_-]+(\/[a-zA-Z0-9_-]+)*$/;
-  const folder =
-    rawFolder && safeFolderPattern.test(rawFolder) && !rawFolder.includes("..")
-      ? rawFolder
-      : "mini-project/uploads";
+  const rawFolder = (req.body?.folder as string || "").trim();
+  const folder = /^[a-zA-Z0-9_-]+(\/[a-zA-Z0-9_-]+)*$/.test(rawFolder)
+    ? rawFolder
+    : "mini-project/uploads";
 
   // Compress and convert to optimized WebP before uploading to Cloudinary
   const compressedBuffer = await compressImage(req.file.buffer, {
