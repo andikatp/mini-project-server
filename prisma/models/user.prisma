@@ -25,6 +25,11 @@ model User {
     pointCredits           PointCredit[]           @relation("ReferrerPoints")
     emailVerificationCodes EmailVerificationCode[]
     systemCoupons          SystemCoupon[]
+    events                 Event[]                 @relation("OrganizerEvents")
+    transactions           Transaction[]           @relation("CustomerTransactions")
+    reviewedProofs         PaymentProof[]          @relation("ProofReviewer")
+    reviews                Review[]                @relation("CustomerReviews")
+    reviewedReviews        Review[]                @relation("ReviewReviewer")
 
     @@map("users")
 }

@@ -1,35 +1,35 @@
-# EventMgmt — Backend PRD
+# Ramein — Backend PRD
 
 _Server-side contract for `mini-project-server`. Split from the full PRD
-("EventMgmt — PRD (Improved)" in Google Docs), which remains the complete
+("Ramein — PRD (Improved)" in Google Docs), which remains the complete
 reference ("kitab"). This file contains only what the backend needs._
 
 ## 1. Product & team
 
-EventMgmt is a two-sided event platform: attendees discover events, buy
+Ramein is a two-sided event platform: attendees discover events, buy
 tickets, upload payment proof, use referral rewards, and review attended
 events. Organizers create/promote events, review transactions, and monitor
 performance from a shared, role-based dashboard.
 
-| Owner              | Backend scope                                                               |
-| ------------------ | --------------------------------------------------------------------------- |
-| Kelvin (Feature 1) | Event/ticket/voucher CRUD, checkout & transactions, payment proofs, reviews |
-| Andika (Feature 2) | Auth & roles, referral/points/coupons, organizer dashboard & stats, emails  |
-| Shared             | DB schema, API contract, seed data, env contract                            |
+| Owner              | Backend scope                                                                  |
+| ------------------ | ------------------------------------------------------------------------------ |
+| Kelvin (Feature 1) | Event/ticket/voucher CRUD, checkout & transactions, payment proofs, reviews    |
+| Andika (Feature 2) | Auth & roles, referral/points/coupons, organizer dashboard & stats, emails     |
+| Shared             | DB schema, API contract, seed data, env contract                               |
 
 ## 2. Server stack
 
-| Layer        | Technology                                                                                                                    |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Server       | Node.js + Express + TypeScript                                                                                                |
-| ORM          | Prisma (typed access, migrations, interactive transactions)                                                                   |
-| Database     | Neon PostgreSQL                                                                                                               |
-| Hosting      | Render (API + migrations on release; cron via external scheduled job)                                                         |
-| Auth         | Database-backed session (stored in Postgres `sessions` table) + HttpOnly cookie + argon2                                      |
-| Validation   | Zod (params, query, body — every endpoint)                                                                                    |
-| File storage | Cloudinary — store URLs + metadata, never image bytes in Postgres                                                             |
-| Email        | Resend (HTTP API, API key based) — decided 2026-10-22                                                                         |
-| Scheduler    | Idempotent expiry service invoked by an external cron (Render Cron Job or equivalent). Never rely on in-process timers alone. |
+| Layer       | Technology                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Server      | Node.js + Express + TypeScript                                                                          |
+| ORM         | Prisma (typed access, migrations, interactive transactions)                                             |
+| Database    | Neon PostgreSQL                                                                                         |
+| Hosting     | Render (API + migrations on release; cron via external scheduled job)                                   |
+| Auth        | Database-backed session (stored in Postgres `sessions` table) + HttpOnly cookie + argon2                |
+| Validation  | Zod (params, query, body — every endpoint)                                                              |
+| File storage | Cloudinary — store URLs + metadata, never image bytes in Postgres                                      |
+| Email       | Resend (HTTP API, API key based) — decided 2026-10-22                                                   |
+| Scheduler   | Idempotent expiry service invoked by an external cron (Render Cron Job or equivalent). Never rely on in-process timers alone. |
 
 Environment (server): DATABASE_URL, DIRECT_URL, SESSION_SECRET,
 CLIENT_ORIGIN, RESEND_API_KEY, EMAIL_FROM, Cloudinary keys.
@@ -91,8 +91,8 @@ Roles: `CUSTOMER`, `EVENT_ORGANIZER`. No platform super-admin.
 - `TRX-02` Checkout may combine voucher + coupon + points in one
   transaction (decided 2026-10-15: stacking allowed). Pricing order:
   1. subtotal from server-side prices × quantities, 2. voucher discount,
-  2. coupon discount, 4. points (1 point = IDR 1), capped so total never
-     goes negative. Persist the full breakdown.
+  3. coupon discount, 4. points (1 point = IDR 1), capped so total never
+  goes negative. Persist the full breakdown.
 - `TRX-03` Paid checkout → WAITING_FOR_PAYMENT, response includes
   paymentExpiresAt = createdAt + 2 hours.
 - `TRX-04` Proof upload before deadline → WAITING_FOR_ADMIN_CONFIRMATION,
@@ -142,13 +142,13 @@ Roles: `CUSTOMER`, `EVENT_ORGANIZER`. No platform super-admin.
 
 ## 5. Transaction status lifecycle (server is the only authority)
 
-| Status                           | Entered by                                                                        |
-| -------------------------------- | --------------------------------------------------------------------------------- |
-| `WAITING_FOR_PAYMENT`            | Paid checkout succeeds (reserve seats + rewards, set 2h deadline)                 |
-| `WAITING_FOR_ADMIN_CONFIRMATION` | Valid proof uploaded in time (set 3-day decision deadline)                        |
-| `DONE`                           | Organizer accepts proof, or free checkout                                         |
-| `REJECTED`                       | Organizer rejects (rollback + reason + email)                                     |
-| `EXPIRED`                        | Scheduler: no proof within 2 hours (rollback)                                     |
+| Status                           | Entered by                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `WAITING_FOR_PAYMENT`            | Paid checkout succeeds (reserve seats + rewards, set 2h deadline)          |
+| `WAITING_FOR_ADMIN_CONFIRMATION` | Valid proof uploaded in time (set 3-day decision deadline)                 |
+| `DONE`                           | Organizer accepts proof, or free checkout                                  |
+| `REJECTED`                       | Organizer rejects (rollback + reason + email)                              |
+| `EXPIRED`                        | Scheduler: no proof within 2 hours (rollback)                              |
 | `CANCELED`                       | Scheduler: no decision within 3 days (rollback), or customer cancels before proof |
 
 Terminal states (DONE/REJECTED/EXPIRED/CANCELED) accept no further
@@ -156,12 +156,12 @@ transitions — return idempotent result or 409.
 
 Rollback matrix (exactly once, guarded by rollbackProcessedAt):
 
-| Resource      | On rollback                                          |
-| ------------- | ---------------------------------------------------- |
-| Ticket seats  | Decrease reserved by item quantity                   |
-| Points        | Reverse debit into original unexpired credit buckets |
-| System coupon | Return to available (within policy)                  |
-| Event voucher | Release redemption/quota                             |
+| Resource      | On rollback                                             |
+| ------------- | ------------------------------------------------------- |
+| Ticket seats  | Decrease reserved by item quantity                      |
+| Points        | Reverse debit into original unexpired credit buckets    |
+| System coupon | Return to available (within policy)                     |
+| Event voucher | Release redemption/quota                                |
 
 ## 6. Database schema (draft — freeze names/enums before coding)
 

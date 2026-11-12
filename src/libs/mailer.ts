@@ -48,7 +48,7 @@ async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
 }
 
 export async function sendVerificationEmail(email: string, otp: string) {
-  logger.info(`[EMAIL VERIFICATION OTP] To: ${email} -> Code: ${otp}`);
+  logger.info(`[EMAIL VERIFICATION OTP] Dispatching verification email to: ${email}`);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -74,7 +74,7 @@ export async function sendVerificationEmail(email: string, otp: string) {
 }
 
 export async function sendPasswordResetEmail(email: string, otp: string) {
-  logger.info(`[PASSWORD RESET OTP] To: ${email} -> Code: ${otp}`);
+  logger.info(`[PASSWORD RESET OTP] Dispatching password reset email to: ${email}`);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">

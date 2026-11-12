@@ -6,6 +6,7 @@ import { SESSION_CONFIG } from "./configs/session.config.ts";
 import { swaggerRouter } from "./docs/swagger.ts";
 import { NotFoundError } from "./errors";
 import { logger } from "./libs/logger.ts";
+import { createCsrfProtection } from "./middlewares/csrf.middleware.ts";
 import { errorHandler } from "./middlewares/errorHandler.ts";
 import { requestLogger } from "./middlewares/logger.middleware.ts";
 import { generalLimiter } from "./middlewares/rateLimiter.ts";
@@ -14,9 +15,29 @@ import routes from "./routes/index.ts";
 const app = express();
 app.disable("x-powered-by");
 
-// Trust first proxy (Render, Cloudflare, Nginx reverse proxy)
-// Required by express-rate-limit to read X-Forwarded-For correctly
-app.set("trust proxy", 1);
+// Standard HTTP Security Headers
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  if (SESSION_CONFIG.secure) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
+  next();
+});
+
+// Trust proxy configuration (supports custom count/subnets or defaults to 1 for Render/Cloudflare)
+function resolveTrustProxySetting(val: string | undefined): string | number {
+  if (!val) {
+    return 1;
+  }
+  const numericVal = Number(val);
+  return Number.isNaN(numericVal) ? val : numericVal;
+}
+
+const trustProxySetting = resolveTrustProxySetting(process.env.TRUST_PROXY);
+app.set("trust proxy", trustProxySetting);
 
 app.use(express.json());
 
@@ -42,6 +63,7 @@ app.use(
     credentials: true,
   }),
 );
+app.use(createCsrfProtection(allowedOrigins));
 app.use(cookieParser(SESSION_CONFIG.secret));
 app.use(requestLogger);
 app.use(generalLimiter);

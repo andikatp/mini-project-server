@@ -1,0 +1,89 @@
+enum EventStatus {
+    DRAFT
+    PUBLISHED
+    CANCELED
+    COMPLETED
+}
+
+enum DiscountType {
+    FIXED
+    PERCENT
+}
+
+model Category {
+    id        String   @id @default(uuid())
+    name      String   @unique
+    slug      String   @unique
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    events Event[]
+
+    @@map("categories")
+}
+
+model Event {
+    id          String      @id @default(uuid())
+    organizerId String      @map("organizer_id")
+    categoryId  String      @map("category_id")
+    title       String
+    slug        String      @unique
+    description String
+    bannerUrl   String?     @map("banner_url")
+    location    String
+    city        String
+    status      EventStatus @default(DRAFT)
+    startAt     DateTime    @map("start_at")
+    endAt       DateTime    @map("end_at")
+    createdAt   DateTime    @default(now()) @map("created_at")
+    updatedAt   DateTime    @updatedAt @map("updated_at")
+
+    organizer    User           @relation("OrganizerEvents", fields: [organizerId], references: [id], onDelete: Cascade)
+    category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+    ticketTypes  TicketType[]
+    vouchers     EventVoucher[]
+    transactions Transaction[]
+    reviews      Review[]
+
+    @@index([status, startAt])
+    @@index([categoryId, city])
+    @@index([organizerId])
+    @@map("events")
+}
+
+model TicketType {
+    id          String   @id @default(uuid())
+    eventId     String   @map("event_id")
+    name        String
+    description String?
+    priceIdr    Int      @default(0) @map("price_idr")
+    quota       Int      @default(0)
+    reservedQty Int      @default(0) @map("reserved_qty")
+    soldQty     Int      @default(0) @map("sold_qty")
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    transactionItems TransactionItem[]
+
+    @@map("ticket_types")
+}
+
+model EventVoucher {
+    id           String       @id @default(uuid())
+    eventId      String       @map("event_id")
+    code         String       @unique
+    discountType DiscountType @map("discount_type")
+    amount       Int
+    quota        Int          @default(0)
+    usedQty      Int          @default(0) @map("used_qty")
+    startAt      DateTime     @map("start_at")
+    endAt        DateTime     @map("end_at")
+    createdAt    DateTime     @default(now()) @map("created_at")
+    updatedAt    DateTime     @updatedAt @map("updated_at")
+
+    event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+    @@map("event_vouchers")
+}
+
