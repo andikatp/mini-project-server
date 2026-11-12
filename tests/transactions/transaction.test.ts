@@ -102,7 +102,7 @@ describe("Transaction & Checkout Service (Feature 1)", () => {
         },
       };
 
-      expect(
+      await expect(
         calculatePricing(
           "evt-1",
           [{ ticketTypeId: "tt-1", quantity: 1 }],

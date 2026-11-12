@@ -7,12 +7,13 @@ function slugify(title: string): string {
     .trim()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
   const suffix = Math.random().toString(36).substring(2, 7);
   return `${base}-${suffix}`;
 }
 
-export async function listCategories() {
+export function listCategories() {
   return prisma.category.findMany({
     orderBy: { name: "asc" },
   });
@@ -146,7 +147,7 @@ export async function getPublicEventDetail(eventIdOrSlug: string) {
     },
   });
 
-  if (!event || event.status !== "PUBLISHED") {
+  if (event?.status !== "PUBLISHED") {
     throw new NotFoundError("Event not found or not currently published");
   }
 

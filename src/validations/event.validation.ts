@@ -27,8 +27,8 @@ export const createEventSchema = z.object({
   bannerUrl: z.url("Banner URL must be a valid URL").optional().nullable(),
   location: z.string().min(3, "Location is required"),
   city: z.string().min(2, "City is required"),
-  startAt: z.coerce.date().refine((d) => !isNaN(d.getTime()), "Invalid start date"),
-  endAt: z.coerce.date().refine((d) => !isNaN(d.getTime()), "Invalid end date"),
+  startAt: z.coerce.date().refine((d) => !Number.isNaN(d.getTime()), "Invalid start date"),
+  endAt: z.coerce.date().refine((d) => !Number.isNaN(d.getTime()), "Invalid end date"),
 }).refine((data) => data.endAt > data.startAt, {
   message: "End date must be after start date",
   path: ["endAt"],

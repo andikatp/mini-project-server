@@ -15,7 +15,7 @@ describe("Review Service (Feature 1)", () => {
 
     (prisma.transaction as any).findFirst = async () => null; // No completed transaction
 
-    expect(
+    await expect(
       createEventReview("cust-1", "evt-1", { rating: 5, comment: "Awesome!" }),
     ).rejects.toThrow(ForbiddenError);
 
@@ -37,7 +37,7 @@ describe("Review Service (Feature 1)", () => {
       status: "DONE",
     });
 
-    expect(
+    await expect(
       createEventReview("cust-1", "evt-1", { rating: 5, comment: "Too early" }),
     ).rejects.toThrow("Cannot review an event that has not ended yet");
 

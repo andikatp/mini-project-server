@@ -28,11 +28,15 @@ app.use((_req, res, next) => {
 });
 
 // Trust proxy configuration (supports custom count/subnets or defaults to 1 for Render/Cloudflare)
-const trustProxySetting = process.env.TRUST_PROXY
-  ? isNaN(Number(process.env.TRUST_PROXY))
-    ? process.env.TRUST_PROXY
-    : Number(process.env.TRUST_PROXY)
-  : 1;
+function resolveTrustProxySetting(val: string | undefined): string | number {
+  if (!val) {
+    return 1;
+  }
+  const numericVal = Number(val);
+  return Number.isNaN(numericVal) ? val : numericVal;
+}
+
+const trustProxySetting = resolveTrustProxySetting(process.env.TRUST_PROXY);
 app.set("trust proxy", trustProxySetting);
 
 app.use(express.json());

@@ -39,7 +39,7 @@ describe("Event Service (Feature 1)", () => {
 
       const result = await listPublicEvents({ page: 1, limit: 10 });
 
-      expect(result.events.length).toBe(1);
+      expect(result.events).toHaveLength(1);
       const firstEvent = result.events[0]!;
       expect(firstEvent.minPriceIdr).toBe(100000);
       expect(firstEvent.availableTickets).toBe(70 + 150); // (100-10-20) + (200-50)
@@ -61,7 +61,7 @@ describe("Event Service (Feature 1)", () => {
         ticketTypes: [],
       });
 
-      expect(publishOrganizerEvent("org-1", "evt-empty")).rejects.toThrow(
+      await expect(publishOrganizerEvent("org-1", "evt-empty")).rejects.toThrow(
         "Cannot publish an event with no ticket types",
       );
 
@@ -78,7 +78,7 @@ describe("Event Service (Feature 1)", () => {
         ticketTypes: [{ id: "tt-1" }],
       });
 
-      expect(publishOrganizerEvent("org-1", "evt-1")).rejects.toThrow(ForbiddenError);
+      await expect(publishOrganizerEvent("org-1", "evt-1")).rejects.toThrow(ForbiddenError);
 
       prisma.event.findUnique = origFindUnique;
     });
@@ -97,7 +97,7 @@ describe("Event Service (Feature 1)", () => {
         event: { organizerId: "org-1" },
       });
 
-      expect(
+      await expect(
         updateTicketType("org-1", "tt-1", { quota: 40 }),
       ).rejects.toThrow(ConflictError);
 
