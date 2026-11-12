@@ -989,6 +989,7 @@ describe("Auth Service Core", () => {
 
     it("should successfully update password on valid old and new password", async () => {
       const origUser = prisma.user;
+      const origSession = prisma.session;
       const oldHashed = await argon2.hash("correctOldPassword");
       const mockFindUnique = mock(async () => ({
         id: "user-1",
@@ -999,9 +1000,14 @@ describe("Auth Service Core", () => {
         updatedData = data;
         return { id: "user-1" };
       });
+      const mockDeleteManySessions = mock(async () => ({ count: 1 }));
 
       Object.defineProperty(prisma, "user", {
         value: { ...origUser, findUnique: mockFindUnique, update: mockUpdate },
+        configurable: true,
+      });
+      Object.defineProperty(prisma, "session", {
+        value: { ...origSession, deleteMany: mockDeleteManySessions },
         configurable: true,
       });
 
@@ -1013,6 +1019,7 @@ describe("Auth Service Core", () => {
 
         expect(result.message).toBe("Password successfully changed");
         expect(mockUpdate).toHaveBeenCalledTimes(1);
+        expect(mockDeleteManySessions).toHaveBeenCalledTimes(1);
         expect(updatedData.passwordHash).toBeDefined();
 
         const isNewPasswordValid = await argon2.verify(
@@ -1023,6 +1030,10 @@ describe("Auth Service Core", () => {
       } finally {
         Object.defineProperty(prisma, "user", {
           value: origUser,
+          configurable: true,
+        });
+        Object.defineProperty(prisma, "session", {
+          value: origSession,
           configurable: true,
         });
       }
