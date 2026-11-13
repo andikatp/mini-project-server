@@ -371,24 +371,26 @@ async function main() {
     });
     if (existingPoints === 0) {
       const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-      await prisma.pointCredit.createMany({
-        data: [
-          {
+      await prisma.$transaction([
+        prisma.pointCredit.create({
+          data: {
             userId: johnDoe.id,
             initialAmount: 10000,
             remainingAmount: 10000,
             issuedAt: now,
             expiresAt,
           },
-          {
+        }),
+        prisma.pointCredit.create({
+          data: {
             userId: johnDoe.id,
             initialAmount: 20000,
             remainingAmount: 20000,
             issuedAt: now,
             expiresAt,
           },
-        ],
-      });
+        }),
+      ]);
     }
 
     const existingCoupon = await prisma.systemCoupon.findFirst({
@@ -725,7 +727,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("Seeding failed:", e);
     process.exit(1);
   })
   .finally(async () => {
