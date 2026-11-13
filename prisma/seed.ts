@@ -50,10 +50,8 @@ const categories = [
 ];
 
 async function main() {
-  console.log("--- Starting Seed ---");
   const passwordHash = await argon2.hash(DEFAULT_PASSWORD);
 
-  console.log("Seeding categories...");
   const categoryMap = new Map<string, string>();
   for (const cat of categories) {
     const category = await prisma.category.upsert({
@@ -64,7 +62,6 @@ async function main() {
     categoryMap.set(cat.slug, category.id);
   }
 
-  console.log("Seeding users...");
   const createdUsers: Record<string, any> = {};
 
   for (const user of dummyUsers) {
@@ -84,9 +81,6 @@ async function main() {
           emailVerifiedAt: user.emailVerified ? new Date() : null,
         },
       });
-      console.log(`[CREATED] ${dbUser.role}: ${dbUser.name} (${dbUser.email})`);
-    } else {
-      console.log(`[EXISTING] ${dbUser.role}: ${dbUser.name} (${dbUser.email})`);
     }
 
     createdUsers[user.email] = dbUser;
@@ -98,8 +92,6 @@ async function main() {
   if (!primaryOrganizer) {
     throw new Error("Primary organizer menyusuriruanghati@gmail.com not created!");
   }
-
-  console.log(`Seeding events and historical transactions for organizer: ${primaryOrganizer.email}...`);
 
   const eventsData = [
     {
@@ -209,8 +201,6 @@ async function main() {
       },
     });
 
-    console.log(`[EVENT] ${event.title} (${event.status})`);
-
     const createdTickets = [];
     for (const t of ev.ticketTiers) {
       let ticket = await prisma.ticketType.findFirst({
@@ -236,11 +226,8 @@ async function main() {
     });
 
     if (existingTxCount >= 5) {
-      console.log(`[SKIP TX] Event ${event.title} already has ${existingTxCount} transactions.`);
       continue;
     }
-
-    console.log(`Seeding transactions for ${event.title}...`);
 
     for (let i = 0; i < ev.targetDoneTransactions; i++) {
       const customer = customerList[i % customerList.length];
@@ -375,7 +362,367 @@ async function main() {
     }
   }
 
-  console.log("Seeding completed successfully.");
+  const johnDoe = createdUsers["john.doe@example.com"];
+  const janeSmith = createdUsers["jane.smith@example.com"];
+
+  if (johnDoe) {
+    const existingPoints = await prisma.pointCredit.count({
+      where: { userId: johnDoe.id },
+    });
+    if (existingPoints === 0) {
+      const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      await prisma.$transaction([
+        prisma.pointCredit.create({
+          data: {
+            userId: johnDoe.id,
+            initialAmount: 10000,
+            remainingAmount: 10000,
+            issuedAt: now,
+            expiresAt,
+          },
+        }),
+        prisma.pointCredit.create({
+          data: {
+            userId: johnDoe.id,
+            initialAmount: 20000,
+            remainingAmount: 20000,
+            issuedAt: now,
+            expiresAt,
+          },
+        }),
+      ]);
+    }
+
+    const existingCoupon = await prisma.systemCoupon.findFirst({
+      where: { userId: johnDoe.id, code: "WELCOME-JOHNDOE" },
+    });
+    if (!existingCoupon) {
+      await prisma.systemCoupon.create({
+        data: {
+          userId: johnDoe.id,
+          code: "WELCOME-JOHNDOE",
+          status: "AVAILABLE",
+          issuedAt: now,
+          expiredAt: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+  }
+
+  if (janeSmith) {
+    const existingPoints = await prisma.pointCredit.count({
+      where: { userId: janeSmith.id },
+    });
+    if (existingPoints === 0) {
+      const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+      await prisma.pointCredit.create({
+        data: {
+          userId: janeSmith.id,
+          initialAmount: 15000,
+          remainingAmount: 15000,
+          issuedAt: now,
+          expiresAt,
+        },
+      });
+    }
+
+    const existingCoupon = await prisma.systemCoupon.findFirst({
+      where: { userId: janeSmith.id, code: "WELCOME-JANESMITH" },
+    });
+    if (!existingCoupon) {
+      await prisma.systemCoupon.create({
+        data: {
+          userId: janeSmith.id,
+          code: "WELCOME-JANESMITH",
+          status: "AVAILABLE",
+          issuedAt: now,
+          expiredAt: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+  }
+
+  const publishedEvents = await prisma.event.findMany({
+    where: { status: "PUBLISHED" },
+    select: { id: true, title: true, slug: true },
+  });
+
+  for (const event of publishedEvents) {
+    const voucherCode = `HEMAT-${event.slug.substring(0, 6).toUpperCase()}`;
+    const existingVoucher = await prisma.eventVoucher.findUnique({
+      where: { code: voucherCode },
+    });
+    if (!existingVoucher) {
+      await prisma.eventVoucher.create({
+        data: {
+          eventId: event.id,
+          code: voucherCode,
+          discountType: "FIXED",
+          amount: 25000,
+          quota: 100,
+          usedQty: 0,
+          startAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+          endAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+  }
+
+  const publishedEventList = await prisma.event.findMany({
+    where: { status: "PUBLISHED" },
+    include: { ticketTypes: true },
+  });
+
+  if (publishedEventList.length > 0) {
+    const ev1 = publishedEventList[0]!;
+    const ev2 = publishedEventList[1] || ev1;
+    const t1 = ev1.ticketTypes[0]!;
+    const t2 = ev2.ticketTypes[0]!;
+
+    if (johnDoe) {
+      const johnTxs = [
+        {
+          code: `TRX-${ev1.slug.substring(0, 8).toUpperCase()}-JD-REJECT-1`,
+          status: "REJECTED" as const,
+          event: ev1,
+          ticket: t1,
+          qty: 2,
+          hoursAgo: 60,
+          proof: {
+            reason: "Bukti transfer tidak terbaca dan nominal tidak sesuai.",
+            delayMin: 30,
+          },
+        },
+        {
+          code: `TRX-${ev2.slug.substring(0, 8).toUpperCase()}-JD-EXPIRE-1`,
+          status: "EXPIRED" as const,
+          event: ev2,
+          ticket: t2,
+          qty: 1,
+          hoursAgo: 36,
+        },
+        {
+          code: `TRX-${ev1.slug.substring(0, 8).toUpperCase()}-JD-CANCEL-1`,
+          status: "CANCELED" as const,
+          event: ev1,
+          ticket: t1,
+          qty: 1,
+          hoursAgo: 18,
+          rollback: true,
+        },
+        {
+          code: `TRX-${ev2.slug.substring(0, 8).toUpperCase()}-JD-WAITPAY-1`,
+          status: "WAITING_FOR_PAYMENT" as const,
+          event: ev2,
+          ticket: t2,
+          qty: 1,
+          hoursAgo: 0.5,
+        },
+        {
+          code: `TRX-${ev1.slug.substring(0, 8).toUpperCase()}-JD-CONFIRM-1`,
+          status: "WAITING_FOR_ADMIN_CONFIRMATION" as const,
+          event: ev1,
+          ticket: t1,
+          qty: 1,
+          hoursAgo: 1,
+          proof: {
+            delayMin: 15,
+          },
+        },
+      ];
+
+      for (const item of johnTxs) {
+        const existing = await prisma.transaction.findUnique({ where: { code: item.code } });
+        if (!existing) {
+          const txTime = new Date(now.getTime() - item.hoursAgo * 3600000);
+          const subtotal = item.ticket.priceIdr * item.qty;
+          await prisma.transaction.create({
+            data: {
+              code: item.code,
+              customerId: johnDoe.id,
+              eventId: item.event.id,
+              status: item.status,
+              subtotalIdr: subtotal,
+              totalIdr: subtotal,
+              paymentExpiresAt: new Date(txTime.getTime() + 2 * 3600000),
+              proofUploadedAt: item.proof ? new Date(txTime.getTime() + item.proof.delayMin * 60000) : null,
+              confirmationDueAt: item.status === "WAITING_FOR_ADMIN_CONFIRMATION" ? new Date(now.getTime() + 3 * 24 * 3600000) : null,
+              rollbackProcessedAt: item.rollback ? new Date(txTime.getTime() + 1800000) : null,
+              createdAt: txTime,
+              updatedAt: new Date(txTime.getTime() + 1800000),
+              items: {
+                create: {
+                  ticketTypeId: item.ticket.id,
+                  ticketName: item.ticket.name,
+                  priceIdr: item.ticket.priceIdr,
+                  quantity: item.qty,
+                  subtotalIdr: subtotal,
+                  createdAt: txTime,
+                },
+              },
+              ...(item.proof
+                ? {
+                    paymentProof: {
+                      create: {
+                        fileUrl: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+                        uploadedAt: new Date(txTime.getTime() + item.proof.delayMin * 60000),
+                        reviewedByUserId: item.proof.reason ? primaryOrganizer.id : null,
+                        reviewedAt: item.proof.reason ? new Date(txTime.getTime() + 4500000) : null,
+                        rejectionReason: item.proof.reason || null,
+                      },
+                    },
+                  }
+                : {}),
+            },
+          });
+        }
+      }
+    }
+
+    if (customerList.length >= 6) {
+      const ev = publishedEventList[0]!;
+      const ticket = ev.ticketTypes[0]!;
+
+      const rejectedCust = customerList[2]!;
+      const expiredCust = customerList[3]!;
+      const canceledCust = customerList[4]!;
+
+      const rejectedTxCode = `TRX-${ev.slug.substring(0, 8).toUpperCase()}-REJECTED-1`;
+      const existingRejected = await prisma.transaction.findUnique({ where: { code: rejectedTxCode } });
+      if (!existingRejected) {
+        const txTime = new Date(now.getTime() - 48 * 3600000);
+        await prisma.transaction.create({
+          data: {
+            code: rejectedTxCode,
+            customerId: rejectedCust.id,
+            eventId: ev.id,
+            status: "REJECTED",
+            subtotalIdr: ticket.priceIdr * 2,
+            totalIdr: ticket.priceIdr * 2,
+            paymentExpiresAt: new Date(txTime.getTime() + 2 * 3600000),
+            proofUploadedAt: new Date(txTime.getTime() + 1800000),
+            createdAt: txTime,
+            updatedAt: new Date(txTime.getTime() + 5000000),
+            items: {
+              create: {
+                ticketTypeId: ticket.id,
+                ticketName: ticket.name,
+                priceIdr: ticket.priceIdr,
+                quantity: 2,
+                subtotalIdr: ticket.priceIdr * 2,
+                createdAt: txTime,
+              },
+            },
+            paymentProof: {
+              create: {
+                fileUrl: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+                reviewedByUserId: primaryOrganizer.id,
+                reviewedAt: new Date(txTime.getTime() + 5000000),
+                uploadedAt: new Date(txTime.getTime() + 1800000),
+                rejectionReason: "Bukti transfer buram dan nominal tidak sesuai.",
+              },
+            },
+          },
+        });
+      }
+
+      const expiredTxCode = `TRX-${ev.slug.substring(0, 8).toUpperCase()}-EXPIRED-1`;
+      const existingExpired = await prisma.transaction.findUnique({ where: { code: expiredTxCode } });
+      if (!existingExpired) {
+        const txTime = new Date(now.getTime() - 24 * 3600000);
+        await prisma.transaction.create({
+          data: {
+            code: expiredTxCode,
+            customerId: expiredCust.id,
+            eventId: ev.id,
+            status: "EXPIRED",
+            subtotalIdr: ticket.priceIdr,
+            totalIdr: ticket.priceIdr,
+            paymentExpiresAt: new Date(txTime.getTime() + 2 * 3600000),
+            createdAt: txTime,
+            updatedAt: new Date(txTime.getTime() + 2 * 3600000),
+            items: {
+              create: {
+                ticketTypeId: ticket.id,
+                ticketName: ticket.name,
+                priceIdr: ticket.priceIdr,
+                quantity: 1,
+                subtotalIdr: ticket.priceIdr,
+                createdAt: txTime,
+              },
+            },
+          },
+        });
+      }
+
+      const canceledTxCode = `TRX-${ev.slug.substring(0, 8).toUpperCase()}-CANCELED-1`;
+      const existingCanceled = await prisma.transaction.findUnique({ where: { code: canceledTxCode } });
+      if (!existingCanceled) {
+        const txTime = new Date(now.getTime() - 12 * 3600000);
+        await prisma.transaction.create({
+          data: {
+            code: canceledTxCode,
+            customerId: canceledCust.id,
+            eventId: ev.id,
+            status: "CANCELED",
+            subtotalIdr: ticket.priceIdr,
+            totalIdr: ticket.priceIdr,
+            paymentExpiresAt: new Date(txTime.getTime() + 2 * 3600000),
+            rollbackProcessedAt: new Date(txTime.getTime() + 1800000),
+            createdAt: txTime,
+            updatedAt: new Date(txTime.getTime() + 1800000),
+            items: {
+              create: {
+                ticketTypeId: ticket.id,
+                ticketName: ticket.name,
+                priceIdr: ticket.priceIdr,
+                quantity: 1,
+                subtotalIdr: ticket.priceIdr,
+                createdAt: txTime,
+              },
+            },
+          },
+        });
+      }
+    }
+  }
+
+  const additionalCouponUsers = [
+    { email: "michael.brown@example.com", points: 20000, couponCode: "WELCOME-MICHAEL" },
+    { email: "emily.davis@example.com", points: 10000, couponCode: "WELCOME-EMILY" },
+    { email: "sarah.taylor@example.com", points: 50000, couponCode: "WELCOME-SARAH" },
+  ];
+
+  for (const item of additionalCouponUsers) {
+    const u = createdUsers[item.email];
+    if (u) {
+      const pCount = await prisma.pointCredit.count({ where: { userId: u.id } });
+      if (pCount === 0) {
+        await prisma.pointCredit.create({
+          data: {
+            userId: u.id,
+            initialAmount: item.points,
+            remainingAmount: item.points,
+            issuedAt: now,
+            expiresAt: new Date(now.getTime() + 90 * 24 * 3600000),
+          },
+        });
+      }
+
+      const cExists = await prisma.systemCoupon.findFirst({ where: { userId: u.id, code: item.couponCode } });
+      if (!cExists) {
+        await prisma.systemCoupon.create({
+          data: {
+            userId: u.id,
+            code: item.couponCode,
+            status: "AVAILABLE",
+            issuedAt: now,
+            expiredAt: new Date(now.getTime() + 90 * 24 * 3600000),
+          },
+        });
+      }
+    }
+  }
 }
 
 main()
