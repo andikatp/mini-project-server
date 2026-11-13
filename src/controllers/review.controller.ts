@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   createEventReview,
+  getCustomerReviews,
   getEventReviews,
   getOrganizerReviews,
   updateReviewStatus,
@@ -33,3 +34,9 @@ export async function updateReviewStatusHandler(req: Request, res: Response) {
   return sendSuccess(res, 200, "Review status updated successfully", review);
 }
 
+
+export async function getCustomerReviewsHandler(req: Request, res: Response) {
+  const customerId = req.user!.id;
+  const reviews = await getCustomerReviews(customerId);
+  return sendSuccess(res, 200, "Customer reviews retrieved successfully", reviews);
+}

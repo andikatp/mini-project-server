@@ -153,3 +153,23 @@ export async function updateReviewStatus(
   });
 }
 
+
+export async function getCustomerReviews(customerId: string) {
+  return prisma.review.findMany({
+    where: { customerId },
+    include: {
+      event: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          bannerUrl: true,
+          city: true,
+          startAt: true,
+          endAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}

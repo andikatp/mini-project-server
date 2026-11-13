@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getCustomerReviewsHandler,
   getOrganizerReviewsHandler,
   updateReviewStatusHandler,
 } from "../controllers/review.controller";
@@ -13,6 +14,14 @@ import {
 } from "../validations/review.validation";
 
 const router = Router();
+
+// Customer reviews
+router.get(
+  "/me",
+  asyncHandler(requireAuth),
+  requireRole("CUSTOMER"),
+  asyncHandler(getCustomerReviewsHandler),
+);
 
 // Public route to view reviews of an organizer
 router.get(
