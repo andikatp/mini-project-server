@@ -50,7 +50,8 @@ export async function registerUserService(input: RegisterInput) {
     }
     // Re-send code for unverified account and continue verification
     await resendVerificationCodeService(existingUser.email);
-    const { passwordHash: _passwordHash, ...userWithoutPassword } = existingUser;
+    const { passwordHash: _passwordHash, ...userWithoutPassword } =
+      existingUser;
     return userWithoutPassword;
   }
 
@@ -205,7 +206,9 @@ export async function verifyEmailService(input: VerifyEmailInput) {
       where: { id: latestCode.id },
       data: {
         attempts: { increment: 1 },
-        ...(latestCode.attempts + 1 >= MAX_OTP_ATTEMPTS && { usedAt: new Date() }),
+        ...(latestCode.attempts + 1 >= MAX_OTP_ATTEMPTS && {
+          usedAt: new Date(),
+        }),
       },
     });
     const remaining = MAX_OTP_ATTEMPTS - updated.attempts;
@@ -260,15 +263,16 @@ export async function resendVerificationCodeService(email: string) {
   });
 
   if (!user) {
-    // Avoid email enumeration
-    return { message: "If your email is registered and unverified, a verification code has been sent." };
+    return {
+      message:
+        "If your email is registered and unverified, a verification code has been sent.",
+    };
   }
 
   if (user.emailVerifiedAt) {
     throw new ValidationError("Email is already verified");
   }
 
-  // Invalidate any active unused verification codes
   await prisma.emailVerificationCode.updateMany({
     where: {
       userId: user.id,
@@ -293,10 +297,7 @@ export async function resendVerificationCodeService(email: string) {
   try {
     await sendVerificationEmail(user.email, rawOtp);
   } catch (err: any) {
-    logger.error(
-      `Failed to resend verification email to ${user.email}`,
-      err,
-    );
+    logger.error(`Failed to resend verification email to ${user.email}`, err);
     throw new AppError(
       `Failed to send verification email: ${err.message || "Email delivery failed"}.`,
       500,
@@ -413,11 +414,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
     return;
   }
 
-  const {
-    rawOtp,
-    codeHash,
-    expiresAt,
-  } = generateOtpRecord();
+  const { rawOtp, codeHash, expiresAt } = generateOtpRecord();
 
   await prisma.passwordResetCode.deleteMany({
     where: {
@@ -488,7 +485,9 @@ export async function verifyResetPasswordService(
       where: { id: latestCode.id },
       data: {
         attempts: { increment: 1 },
-        ...(latestCode.attempts + 1 >= MAX_OTP_ATTEMPTS && { usedAt: new Date() }),
+        ...(latestCode.attempts + 1 >= MAX_OTP_ATTEMPTS && {
+          usedAt: new Date(),
+        }),
       },
     });
     const remaining = MAX_OTP_ATTEMPTS - updated.attempts;

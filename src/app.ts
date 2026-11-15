@@ -20,20 +20,21 @@ app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), camera=(), microphone=()",
+  );
   if (SESSION_CONFIG.secure) {
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
   }
   next();
 });
 
-// Trust proxy configuration (supports custom count/subnets or defaults to 1 for Render/Cloudflare)
-const trustProxySetting = process.env.TRUST_PROXY
-  ? isNaN(Number(process.env.TRUST_PROXY))
-    ? process.env.TRUST_PROXY
-    : Number(process.env.TRUST_PROXY)
-  : 1;
-app.set("trust proxy", trustProxySetting);
+// Trust proxy configuration (Render/Cloudflare)
+app.set("trust proxy", 1);
 
 app.use(express.json());
 
@@ -117,6 +118,5 @@ if (import.meta.main) {
     shutdown("unhandledRejection");
   });
 }
-
 
 export default app;
