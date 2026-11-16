@@ -206,7 +206,8 @@ code; on success creates the session), `POST /auth/resend-verification`,
 `POST /auth/forgot-password`,
 `POST /auth/verify-reset-password` (checks the OTP code; returns a one-time
 reset token), `POST /auth/reset-password` (reset token + new password),
-`PATCH /users/me`, `PATCH /users/me/password`.
+`POST /auth/change-password` (oldPassword/currentPassword + newPassword),
+`PATCH /users/me`.
 
 Discovery: `GET /categories`, `GET /events` (search/filter/paginate, public),
 `GET /events/:eventId`, `GET /organizers/:organizerId/reviews`.
