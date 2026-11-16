@@ -10,6 +10,13 @@ const baseDefinition = {
 
 // Each definition targets specific route files via the `apis` glob
 const definitions: Record<string, ReturnType<typeof swaggerJsdoc>> = {
+  "All APIs": swaggerJsdoc({
+    definition: {
+      ...baseDefinition,
+      info: { title: "All API Endpoints", version: APP_CONFIG.version },
+    },
+    apis: ["./src/routes/*.ts"],
+  }),
   "Auth Service": swaggerJsdoc({
     definition: {
       ...baseDefinition,
@@ -17,12 +24,37 @@ const definitions: Record<string, ReturnType<typeof swaggerJsdoc>> = {
     },
     apis: ["./src/routes/auth.route.ts"],
   }),
-  "User Service": swaggerJsdoc({
+  "Event & Review": swaggerJsdoc({
     definition: {
       ...baseDefinition,
-      info: { title: "User Service", version: APP_CONFIG.version },
+      info: { title: "Event & Review Service", version: APP_CONFIG.version },
     },
-    apis: ["./src/routes/user.route.ts"],
+    apis: ["./src/routes/event.route.ts", "./src/routes/review.route.ts"],
+  }),
+  "Transaction & Checkout": swaggerJsdoc({
+    definition: {
+      ...baseDefinition,
+      info: { title: "Transaction & Checkout Service", version: APP_CONFIG.version },
+    },
+    apis: ["./src/routes/transaction.route.ts", "./src/routes/checkout.route.ts"],
+  }),
+  "Organizer Service": swaggerJsdoc({
+    definition: {
+      ...baseDefinition,
+      info: { title: "Organizer Service", version: APP_CONFIG.version },
+    },
+    apis: ["./src/routes/organizer.route.ts"],
+  }),
+  "User & Reward": swaggerJsdoc({
+    definition: {
+      ...baseDefinition,
+      info: { title: "User & Reward Service", version: APP_CONFIG.version },
+    },
+    apis: [
+      "./src/routes/user.route.ts",
+      "./src/routes/reward.route.ts",
+      "./src/routes/upload.route.ts",
+    ],
   }),
 };
 
