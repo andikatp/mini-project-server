@@ -46,10 +46,20 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
-export const changePasswordSchema = z.object({
-  oldPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(6, "New password must be at least 6 characters long"),
-});
+export const changePasswordSchema = z
+  .object({
+    oldPassword: z.string().min(1, "Current password is required").optional(),
+    currentPassword: z.string().min(1, "Current password is required").optional(),
+    newPassword: z.string().min(6, "New password must be at least 6 characters long"),
+  })
+  .refine((data) => !!(data.oldPassword || data.currentPassword), {
+    message: "Current password is required",
+    path: ["currentPassword"],
+  })
+  .transform((data) => ({
+    oldPassword: (data.oldPassword || data.currentPassword)!,
+    newPassword: data.newPassword,
+  }));
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
