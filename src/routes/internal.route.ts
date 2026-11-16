@@ -21,6 +21,24 @@ router.use((req, _res, next) => {
   next();
 });
 
+/**
+ * @swagger
+ * /internal/jobs/process-expired-transactions:
+ *   post:
+ *     summary: Trigger background expiration job for unpaid transactions (Requires internal secret)
+ *     tags: [Internal / Cron]
+ *     parameters:
+ *       - in: header
+ *         name: x-internal-secret
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Expired transactions processed
+ *       401:
+ *         description: Unauthorized (Invalid secret)
+ */
 router.post("/jobs/process-expired-transactions", asyncHandler(processExpiredTransactionsHandler));
 
 export default router;

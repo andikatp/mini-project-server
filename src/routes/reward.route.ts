@@ -5,7 +5,7 @@ import {
   validateCouponHandler,
 } from "../controllers/reward.controller";
 import { asyncHandler } from "../middlewares/asyncHandler";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware";
+import { requireAuth, requireRole, UserRole } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import {
   paginationQuerySchema,
@@ -15,7 +15,7 @@ import {
 const router = Router();
 
 // Only authenticated customers can access customer reward endpoints
-router.use(requireAuth, requireRole("CUSTOMER"));
+router.use(requireAuth, requireRole(UserRole.CUSTOMER));
 
 /**
  * @swagger

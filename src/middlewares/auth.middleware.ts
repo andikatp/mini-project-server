@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { SESSION_CONFIG } from "../configs/session.config.ts";
 import { AuthenticationError, ForbiddenError } from "../errors";
+import { UserRole } from "../generated/prisma/client";
 import { validateSessionService } from "../services/auth.service";
+
+export { UserRole };
 
 // Extend Express Request type to include user & session
 declare global {
@@ -11,7 +14,7 @@ declare global {
         id: string;
         email: string;
         name: string;
-        role: "CUSTOMER" | "EVENT_ORGANIZER";
+        role: UserRole;
         avatarUrl: string | null;
         referralCode: string;
         emailVerifiedAt: Date | null;
@@ -51,10 +54,10 @@ export async function requireAuth(
 }
 
 /**
- * Middleware that restricts access to specific user roles (e.g., EVENT_ORGANIZER).
+ * Middleware that restricts access to specific user roles (e.g., UserRole.EVENT_ORGANIZER).
  * Must be placed after `requireAuth`.
  */
-export function requireRole(...allowedRoles: Array<"CUSTOMER" | "EVENT_ORGANIZER">) {
+export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {
       throw new AuthenticationError("Authentication required.");
